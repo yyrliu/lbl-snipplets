@@ -9,4 +9,6 @@ dependencies = [
     "matplotlib>=3.10.1",
     "pandas>=2.2.3",
     "scipy>=1.15.2",
+    "xylib-py>=1.6.1",
 ]
+
