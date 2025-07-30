@@ -1,4 +1,6 @@
 import matplotlib.pyplot as plt
+from numpy import linspace
+
 
 def get_label_prefix(label):
     # Extract prefix from label (everything before the first space or underscore)
@@ -9,35 +11,50 @@ def get_label_prefix(label):
     else:
         return label
 
-def get_linestyle_factory():
+
+def get_linestyle_factory(ignore_out_of_range=False):
     # Create a linestyle mapping using closure with dict for prefix tracking
     linestyles = ["-", "--", ":", "-."]
-    used_prefixes = set()
-    linestyle_iter = iter(linestyles)
+    prefix_iters = {}
 
     def get_linestyle(label):
-        nonlocal linestyle_iter
         prefix = get_label_prefix(label)
 
-        # If prefix not seen before, assign new linestyle
-        if prefix not in used_prefixes:
-            used_prefixes.add(prefix)
-            linestyle_iter = iter(linestyles)
+        try:
+            return next(prefix_iters[prefix])
+        except KeyError:
+            # If prefix not seen before, create a new iterator for linestyles
+            print(f"Creating new linestyle iterator for prefix: {prefix}")
+            prefix_iters[prefix] = iter(linestyles)
+            return next(prefix_iters[prefix])
+        except StopIteration as e:
+            if not ignore_out_of_range:
+                raise e
 
-        return next(linestyle_iter)
+            prefix_iters[prefix] = iter(linestyles)
+            return next(prefix_iters[prefix])
 
     return get_linestyle
 
 
-def get_color_factory(colormap=None, cycle_by_prefix=True):
+def get_color_factory(
+    colormap="qualitative", n=None, cycle_by_prefix=True, colors=None
+):
     # Create a color mapping using closure with set for prefix tracking
-    if colormap is None:
-        colormap = plt.colormaps.get_cmap("tab10").colors
-
-    prefix_colors = {}
-    used_prefixes = set()
+    if colors is None:
+        if colormap == "qualitative":
+            colors = plt.colormaps.get_cmap("tab10").colors
+        elif colormap == "sequential":
+            colors = [
+                plt.colormaps.get_cmap("viridis").reversed()(i)
+                for i in linspace(0, 1, n or 6)
+            ]
+        else:
+            raise ValueError(f"Unknown colormap: {colormap}")
 
     if cycle_by_prefix:
+        prefix_colors = {}
+        used_prefixes = set()
 
         def get_color(label):
             prefix = get_label_prefix(label)
@@ -46,18 +63,16 @@ def get_color_factory(colormap=None, cycle_by_prefix=True):
             if prefix not in used_prefixes:
                 used_prefixes.add(prefix)
                 color_index = len(used_prefixes) - 1
-                prefix_colors[prefix] = colormap[color_index % len(colormap)]
+                prefix_colors[prefix] = colors[color_index % len(colors)]
 
             return prefix_colors[prefix]
 
         return get_color
 
     else:
-        color_iter = iter(colormap)
+        color_iter = iter(colors)
 
-        def get_color(label):
-            nonlocal color_iter
+        def get_color(_):
             return next(color_iter)
 
         return get_color
-    
