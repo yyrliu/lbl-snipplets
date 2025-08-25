@@ -218,7 +218,7 @@ def read_h5_file(file_path):
                 "photo": hf["measurement/spec_run/photo"][:],
                 "adj_photo": hf["measurement/spec_run/adj_photo"][:],
                 "dark_photo": hf["measurement/spec_run/dark_photo"][:],
-                "adj_photo_exposure": hf["measurement/spec_run/adj_photo_exposure"],
+                "adj_photo_exposure": hf["measurement/spec_run/adj_photo_exposure"][()],
             }
 
             return {
@@ -273,7 +273,7 @@ def process_uv_vis_data(wl_data, wls_range=None):
 
     # Calculate derived spectra with improved handling of invalid values
     # Clip transmission to avoid log(0) or log(negative values)
-    absorption_spectrum = -np.log(np.clip(transmittance, 1e-10, None))
+    absorption_spectrum = -np.log10(np.clip(transmittance, 1e-4, None))
 
     wl_energy_axis = wavelength_to_energy(wl_wave_axis)
     absorption_spectrum_jacobian = apply_jacobian(absorption_spectrum, wl_wave_axis)
