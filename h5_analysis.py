@@ -204,22 +204,28 @@ def read_h5_file(file_path):
             }
 
             # PL data
-            pl_data = {
-                "pl_dark_int_time": hf["measurement/spec_run/pl_dark_int_time"][()],
-                "pl_dark_spectrum": hf["measurement/spec_run/pl_dark_spectrum"][:],
-                "pl_spec_int_times": hf["measurement/spec_run/pl_spectra_int_times"][:],
-                "pl_spectra": hf["measurement/spec_run/pl_spectra"][:],
-                "pl_ref_int_time": hf["measurement/spec_run/pl_ref_int_time"][()],
-                "pl_ref_spectrum": hf["measurement/spec_run/pl_ref_spectrum"][:],
-                "pl_wls": hf["measurement/spec_run/pl_wls"][:],
-            }
+            if "measurement/spec_run/pl_spectra" in hf:
+                pl_data = {
+                    "pl_dark_int_time": hf["measurement/spec_run/pl_dark_int_time"][()],
+                    "pl_dark_spectrum": hf["measurement/spec_run/pl_dark_spectrum"][:],
+                    "pl_spec_int_times": hf["measurement/spec_run/pl_spectra_int_times"][:],
+                    "pl_spectra": hf["measurement/spec_run/pl_spectra"][:],
+                    "pl_ref_int_time": hf["measurement/spec_run/pl_ref_int_time"][()],
+                    "pl_ref_spectrum": hf["measurement/spec_run/pl_ref_spectrum"][:],
+                    "pl_wls": hf["measurement/spec_run/pl_wls"][:],
+                }
+            else:
+                pl_data = None
 
-            photo = {
-                "photo": hf["measurement/spec_run/photo"][:],
-                "adj_photo": hf["measurement/spec_run/adj_photo"][:],
-                "dark_photo": hf["measurement/spec_run/dark_photo"][:],
-                "adj_photo_exposure": hf["measurement/spec_run/adj_photo_exposure"][()],
-            }
+            if "measurement/spec_run/photo" in hf:
+                photo = {
+                    "photo": hf["measurement/spec_run/photo"][:],
+                    "adj_photo": hf["measurement/spec_run/adj_photo"][:],
+                    "dark_photo": hf["measurement/spec_run/dark_photo"][:],
+                    "adj_photo_exposure": hf["measurement/spec_run/adj_photo_exposure"][()],
+                }
+            else:
+                photo = None
 
             return {
                 "metadata": metadata,
