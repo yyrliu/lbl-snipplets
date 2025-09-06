@@ -13,3 +13,8 @@ dependencies = [
     "xylib-py>=1.6.1",
 ]
 
+[project.optional-dependencies]
+xrd = [
+    "xylib-py>=1.6.1",
+]
+

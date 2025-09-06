@@ -427,6 +427,11 @@ dependencies = [
     { name = "xylib-py" },
 ]
 
+[package.optional-dependencies]
+xrd = [
+    { name = "xylib-py" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "h5py", specifier = ">=3.14.0" },
@@ -435,7 +440,9 @@ requires-dist = [
     { name = "pandas", specifier = ">=2.2.3" },
     { name = "scipy", specifier = ">=1.15.2" },
     { name = "xylib-py", specifier = ">=1.6.1" },
+    { name = "xylib-py", marker = "extra == 'xrd'", specifier = ">=1.6.1" },
 ]
+provides-extras = ["xrd"]
 
 [[package]]
 name = "matplotlib"
