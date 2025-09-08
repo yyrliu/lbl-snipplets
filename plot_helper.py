@@ -76,15 +76,18 @@ def get_color_factory(colormap="tab10", n=None, cycle_by="prefix", colors=None):
         return get_color
 
     if cycle_by == "line":
+        linecolors = {}
         color_iter = iter(colors)
 
-        def get_color(_):
+        def get_color(label):
             nonlocal color_iter
-            try:
-                return next(color_iter)
-            except StopIteration:
-                color_iter = iter(colors)
-                return next(color_iter)
+            if label not in linecolors.keys():
+                try:
+                    linecolors[label] = next(color_iter)
+                except StopIteration:
+                    color_iter = iter(colors)
+                    return next(color_iter)
+            return linecolors[label]
 
         return get_color
 
@@ -221,19 +224,21 @@ def voigt(x, amplitude, center, sigma, gamma, baseline):
     """Voigt profile function for peak fitting"""
     from scipy.special import wofz
     import numpy as np
-    
+
     z = ((x - center) + 1j * gamma) / (sigma * np.sqrt(2))
-    return amplitude * np.real(wofz(z)) / (sigma * np.sqrt(2*np.pi)) + baseline
+    return amplitude * np.real(wofz(z)) / (sigma * np.sqrt(2 * np.pi)) + baseline
 
 
 def voigt_fwhm(sigma, gamma):
     """Calculate FWHM for Voigt profile"""
     import numpy as np
-    
+
     fwhm_gauss = 2.355 * sigma  # 2*sqrt(2*ln(2)) * sigma
     fwhm_lorentz = 2 * gamma
     # Approximation for Voigt FWHM
-    fwhm_voigt = 0.5346 * fwhm_lorentz + np.sqrt(0.2166 * fwhm_lorentz**2 + fwhm_gauss**2)
+    fwhm_voigt = 0.5346 * fwhm_lorentz + np.sqrt(
+        0.2166 * fwhm_lorentz**2 + fwhm_gauss**2
+    )
     return fwhm_voigt
 
 
@@ -241,78 +246,94 @@ def fit_peak_fwhm(x_data, y_data, peak_center_guess):
     """Calculate FWHM for a single peak using Voigt profile fitting with constraints"""
     from scipy.optimize import curve_fit
     import numpy as np
-    
+
     try:
         # Constrain fitting to the peak region (-110 to -70 degrees)
         peak_region_mask = (x_data >= -110) & (x_data <= -70)
-        
+
         if not np.any(peak_region_mask):
-            return {'success': False, 'error': 'No data in peak region (-110 to -70)'}
-        
+            return {"success": False, "error": "No data in peak region (-110 to -70)"}
+
         x_fit = x_data[peak_region_mask]
         y_fit = y_data[peak_region_mask]
-        
+
         # Remove baseline by finding minimum in a wider region
         baseline_region_mask = (x_data >= -120) & (x_data <= -60)
         if np.any(baseline_region_mask):
-            baseline_guess = np.percentile(y_data[baseline_region_mask], 10)  # Use 10th percentile as baseline
+            baseline_guess = np.percentile(
+                y_data[baseline_region_mask], 10
+            )  # Use 10th percentile as baseline
         else:
             baseline_guess = np.min(y_fit)
-        
+
         # Subtract baseline for better peak detection
         y_fit_corrected = y_fit - baseline_guess
-        
+
         # Find actual peak center in the constrained region
         peak_idx = np.argmax(y_fit_corrected)
         center_guess = x_fit[peak_idx]
-        
+
         # Better initial parameter guesses
         amplitude_guess = np.max(y_fit_corrected)
         sigma_guess = 2.0  # Reasonable initial width for XRD peaks
         gamma_guess = 1.0  # Initial Lorentzian component
-        
-        initial_guess = [amplitude_guess, center_guess, sigma_guess, gamma_guess, baseline_guess]
-        
+
+        initial_guess = [
+            amplitude_guess,
+            center_guess,
+            sigma_guess,
+            gamma_guess,
+            baseline_guess,
+        ]
+
         # Set parameter bounds to constrain the fit
         # [amplitude, center, sigma, gamma, baseline]
         lower_bounds = [0, -110, 0.1, 0.1, 0]  # Center must be in peak region
         upper_bounds = [np.inf, -70, 20, 20, np.inf]  # Reasonable physical limits
-        
+
         # Fit Voigt profile with constraints
         popt, pcov = curve_fit(
-            voigt, x_fit, y_fit, 
-            p0=initial_guess, 
+            voigt,
+            x_fit,
+            y_fit,
+            p0=initial_guess,
             bounds=(lower_bounds, upper_bounds),
-            maxfev=10000
+            maxfev=10000,
         )
         amplitude, center, sigma, gamma, baseline = popt
-        
+
         # Calculate FWHM
         fwhm = voigt_fwhm(sigma, gamma)
-        
+
         # Calculate R² and other quality metrics
         y_pred = voigt(x_fit, *popt)
         ss_res = np.sum((y_fit - y_pred) ** 2)
         ss_tot = np.sum((y_fit - np.mean(y_fit)) ** 2)
         r_squared = 1 - (ss_res / ss_tot) if ss_tot > 0 else 0
-        
+
         # Additional quality check: peak should be within expected range
         if not (-110 <= center <= -70):
-            return {'success': False, 'error': f'Peak center {center:.2f} outside expected range (-110 to -70)'}
-        
+            return {
+                "success": False,
+                "error": f"Peak center {center:.2f} outside expected range (-110 to -70)",
+            }
+
         # Check if FWHM is reasonable (not too narrow or too wide)
         if not (0.5 <= fwhm <= 50):
-            return {'success': False, 'error': f'FWHM {fwhm:.3f} outside reasonable range (0.5 to 50)'}
-        
+            return {
+                "success": False,
+                "error": f"FWHM {fwhm:.3f} outside reasonable range (0.5 to 50)",
+            }
+
         return {
-            'success': True,
-            'center': center,
-            'fwhm': fwhm,
-            'r_squared': r_squared,
-            'fit_params': popt,
-            'x_fit': x_fit,
-            'y_fit': y_fit,
-            'y_pred': y_pred
+            "success": True,
+            "center": center,
+            "fwhm": fwhm,
+            "r_squared": r_squared,
+            "fit_params": popt,
+            "x_fit": x_fit,
+            "y_fit": y_fit,
+            "y_pred": y_pred,
         }
     except Exception as e:
-        return {'success': False, 'error': str(e)}
+        return {"success": False, "error": str(e)}

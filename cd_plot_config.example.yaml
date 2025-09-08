@@ -1,0 +1,118 @@
+# CD Plot Configuration for LPS 20250904 experiment
+# G:/My Drive/LPS/20250904_LPS_pre_5/CD
+
+data_dirs:
+  - "G:/My Drive/LPS/20250904_LPS_pre_5/CD"
+
+file_pattern: "*.txt"
+
+file_params:
+  separator: "\t"
+  skiprows: 3
+  wavelength_range: [null, null]  # No wavelength filtering
+
+# Label mapping for LPS-pre5 samples
+# Files follow pattern: LPS-pre5-{front|back}-{number}.txt
+label_mapping:
+  - pattern: '^(?P<prefix>[A-Za-z0-9]*?)[-_]?(?P<number>\d+)$'
+    rules:
+      # Mapping for LPS pre-study 5 samples
+      - prefix: ""
+        number_range: "1-2"
+        label: "0.3M-wash {number}"
+      - prefix: ""
+        number_range: "3-4"
+        label: "0.3M {number}"
+      - prefix: ""
+        number_range: "5-6"
+        label: "1.0M-wash {number}"
+      - prefix: ""
+        number_range: "7-8"
+        label: "1.0M {number}"
+      - prefix: ""
+        number_range: "9-12"
+        label: "Anneal {mapped_result} min (0.3M, no PMMA)"
+        number_mapping:
+          1: 20
+          2: 17
+          3: 13
+          4: 10
+    
+plots:
+  - output_file: "CD_conc.jpg"
+    # title: "GB Samples"
+    filters:
+      - {key: "label", equals: "0.3M "}
+      - {key: "label", equals: "1.0M "}
+    style:
+      linecolor:
+        colormap: 'tab10'
+        cycle_by: "prefix"
+      linestyle:
+        cycle_within: "prefix"
+
+    legend_kwargs:
+      fontsize: "small"
+      frameon: false
+
+  - output_file: "CD_wash_0.3M.jpg"
+    # title: "Robot Samples"
+    filters:
+      - {key: "label", equals: "0.3M "}
+      - {key: "label", equals: "0.3M-wash "}
+    style:
+      linecolor:
+        colormap: 'tab10'
+        cycle_by: "prefix"
+      linestyle:
+        cycle_within: "prefix"
+
+    legend_kwargs:
+      fontsize: "small"
+      frameon: false
+
+  - output_file: "CD_wash_1.0M.jpg"
+    # title: "Robot Samples"
+    filters:
+      - {key: "label", contains: "1.0M"}
+    style:
+      linecolor:
+        colormap: 'tab10'
+        cycle_by: "prefix"
+      linestyle:
+        cycle_within: "prefix"
+
+    legend_kwargs:
+      fontsize: "small"
+      frameon: false
+
+  - output_file: "CD_wash.jpg"
+    # title: "Robot Samples"
+    filters:
+      - {key: "label", equals: "0.3M "}
+      - {key: "label", equals: "0.3M-wash "}
+      - {key: "label", contains: "1.0M"}
+    style:
+      linecolor:
+        colormap: 'tab10'
+        cycle_by: "prefix"
+      linestyle:
+        cycle_within: "prefix"
+
+    legend_kwargs:
+      fontsize: "small"
+      frameon: false
+
+  - output_file: "CD_anneal_time.jpg"
+    # title: "PbI2 Samples"
+    filters:
+      - { key: "label", contains: "Anneal" }
+    style:
+      linecolor:
+        colormap: 'viridis'
+        n: 4
+        cycle_by: "line"
+
+    legend_kwargs:
+      fontsize: "small"
+      frameon: false
