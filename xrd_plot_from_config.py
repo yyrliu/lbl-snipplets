@@ -16,10 +16,16 @@ def load_config(config_path):
         return yaml.safe_load(f)
 
 
-def find_xy_files(data_dirs):
+def find_xy_files(data_dirs, file_pattern="**/*merge.xy"):
+    """Find XY files matching the specified pattern.
+    
+    Args:
+        data_dirs: List of directories to search
+        file_pattern: Glob pattern for files (default: "**/*merge.xy" for regular XRD)
+    """
     files = []
     for d in data_dirs:
-        files.extend(Path(d).glob("**/*.xy"))
+        files.extend(Path(d).glob(file_pattern))
     return files
 
 
@@ -94,6 +100,7 @@ def plot_xrd(df, plot_cfg, data_dir=None):
     if "xlim_2" in plot_cfg["options"]:
         axs[1].set_xlim(*plot_cfg["options"]["xlim_2"])
 
+
     # Construct output path - save to data directory if provided, otherwise use current directory
     if data_dir:
         output_path = Path(data_dir) / plot_cfg["output_file"]
@@ -111,7 +118,10 @@ def main():
     parser.add_argument("--config", type=str, required=True)
     args = parser.parse_args()
     cfg = load_config(args.config)
-    xy_files = find_xy_files(cfg["data_dirs"])
+    
+    # Use file_pattern from config, default to merge files for regular XRD analysis
+    file_pattern = cfg.get("file_pattern", "**/*merge.xy")
+    xy_files = find_xy_files(cfg["data_dirs"], file_pattern)
     df = load_xy_data(xy_files, cfg["label_mapping"])
 
     # Use the first data directory for saving plots
