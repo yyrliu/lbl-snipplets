@@ -101,22 +101,22 @@ def test_match_label_filter():
 
     # Test equals filter with prefix and digit
     equals_filter = {"key": "label", "equals": "0.3M "}
-    assert match_label_filter("0.3M 1", equals_filter) == True
-    assert match_label_filter("0.3M 2", equals_filter) == True
-    assert match_label_filter("0.3M-wash 1", equals_filter) == False  # Different prefix
-    assert match_label_filter("1.0M 1", equals_filter) == False  # Different prefix
-    assert match_label_filter("0.3M", equals_filter) == False  # No digit after
-    assert match_label_filter("0.3M abc", equals_filter) == False  # Not a digit
+    assert match_label_filter("0.3M 1", equals_filter)
+    assert match_label_filter("0.3M 2", equals_filter)
+    assert not match_label_filter("0.3M-wash 1", equals_filter)  # Different prefix
+    assert not match_label_filter("1.0M 1", equals_filter)  # Different prefix
+    assert not match_label_filter("0.3M", equals_filter)  # No digit after
+    assert not match_label_filter("0.3M abc", equals_filter)  # Not a digit
 
     # Test contains filter
     contains_filter = {"key": "label", "contains": "Anneal"}
-    assert match_label_filter("Anneal 20 min (0.3M, no PMMA)", contains_filter) == True
-    assert match_label_filter("Anneal 17 min (0.3M, no PMMA)", contains_filter) == True
-    assert match_label_filter("0.3M 1", contains_filter) == False
+    assert match_label_filter("Anneal 20 min (0.3M, no PMMA)", contains_filter)
+    assert match_label_filter("Anneal 17 min (0.3M, no PMMA)", contains_filter)
+    assert not match_label_filter("0.3M 1", contains_filter)
 
     # Test unknown filter type
     unknown_filter = {"key": "label", "unknown": "test"}
-    assert match_label_filter("anything", unknown_filter) == False
+    assert not match_label_filter("anything", unknown_filter)
 
 
 def test_filter_columns():
