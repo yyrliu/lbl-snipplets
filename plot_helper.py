@@ -98,7 +98,7 @@ def get_label_from_mapping(metadata_or_str, label_mapping):
         sample_name_full = str(metadata_or_str.get("sample_name", ""))
     else:
         sample_name_full = str(metadata_or_str)
-    
+
     default_pattern = r"^(?P<prefix>[A-Za-z0-9]*?)[-_]?(?P<number>\d+)$"
     for mapping in label_mapping:
         mapping_pattern = mapping.get("pattern", default_pattern)
@@ -148,22 +148,24 @@ def filter_columns(df, filters):
     """Filter DataFrame columns based on filter criteria"""
     if not filters:
         return df.columns.tolist()
-    
+
     columns = df.columns.tolist()
     result = []
-    
+
     for filter_spec in filters:
-        if 'key' in filter_spec and filter_spec['key'] == 'label':
-            if 'equals' in filter_spec:
+        if "key" in filter_spec and filter_spec["key"] == "label":
+            if "equals" in filter_spec:
                 # Use the sophisticated "equals" matching from h5 plot
                 # Apply the filter to each column individually
                 for col in columns:
                     if match_label_filter(col, filter_spec):
                         result.append(col)
-            elif 'contains' in filter_spec:
+            elif "contains" in filter_spec:
                 # Use simple contains matching
-                result.extend([col for col in columns if filter_spec['contains'] in col])
-    
+                result.extend(
+                    [col for col in columns if filter_spec["contains"] in col]
+                )
+
     return list(set(result))  # Remove duplicates
 
 
