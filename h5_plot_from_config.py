@@ -3,6 +3,7 @@ import yaml
 import matplotlib.pyplot as plt
 import pandas as pd
 from pathlib import Path
+import numpy as np
 
 # Import the h5_analysis module containing all core functions
 from h5_analysis import (
@@ -14,6 +15,18 @@ from h5_analysis import (
     apply_jacobian,
 )
 from plot_helper import get_color_factory, get_linestyle_factory
+
+
+def match_label_filter(label, filt):
+    """Reusable filter function for label matching."""
+    if "equals" in filt:
+        return (
+            label.startswith(filt["equals"])
+            and label[len(filt["equals"]) :].strip().isdigit()
+        )
+    elif "contains" in filt:
+        return filt["contains"] in label
+    return False
 
 
 def get_label_from_mapping(metadata, label_mapping):
@@ -101,17 +114,47 @@ def plot_single_column_data(
         ax.ticklabel_format(style="sci", axis="y", scilimits=(0, 0), useMathText=True)
 
 
-def get_style_func(style_mapping, style_key, default_style):
-    """Create a function that returns a style based on a label."""
+def plot_pl_img(
+    imgs,
+    output_file,
+    img_per_row=4,
+    colormap="gist_gray",
+    x_offset=None,
+    normalize=False,
+):
+    print(f"Generating PL image plot: {output_file}")
+    imgs_sorted = sorted(imgs, key=lambda x: x.get("label", ""))
+    n_imgs = len(imgs_sorted)
+    n_rows = (n_imgs + img_per_row - 1) // img_per_row
+    fig, axes = plt.subplots(n_rows, img_per_row, figsize=(4 * img_per_row, 4 * n_rows))
+    axes = np.array(axes).reshape(n_rows, img_per_row)
+    for idx, img_dict in enumerate(imgs_sorted):
+        row, col = divmod(idx, img_per_row)
+        ax = axes[row, col]
 
-    def func(label):
-        if style_mapping:
-            for mapping in style_mapping:
-                if mapping["label_contains"] in label:
-                    return mapping[style_key]
-        return default_style
+        if normalize and "normalized_img" in img_dict:
+            img = img_dict["normalized_img"]
+        else:
+            img = img_dict["image"]
 
-    return func
+        img_dim = img.shape
+
+        if x_offset is not None:
+            img = img[:, x_offset : (img_dim[0] + x_offset)]
+
+        v_range = {"vmin": 0, "vmax": 1} if normalize else {"vmin": 0, "vmax": 255}
+
+        ax.imshow(img, cmap=colormap, aspect="equal", **v_range)
+        ax.set_title(img_dict.get("label", ""))
+        ax.axis("off")
+    # Hide unused axes
+    for idx in range(n_imgs, n_rows * img_per_row):
+        row, col = divmod(idx, img_per_row)
+        axes[row, col].axis("off")
+    plt.tight_layout()
+    plt.savefig(output_file, dpi=300, bbox_inches="tight")
+    print(f"  PL image plot saved to: {output_file}")
+    plt.close(fig)
 
 
 def main(config_path):
@@ -126,6 +169,8 @@ def main(config_path):
     # Process H5 files and extract data
     uv_vis_dfs = []
     pl_dfs = []
+    pl_imgs = []
+
     for h5_file in h5_files:
         data = read_h5_file(h5_file)
         if data is None:
@@ -171,6 +216,19 @@ def main(config_path):
             pl_df = pd.concat([pl_df, metadata_df], axis=1)
             pl_dfs.append(pl_df)
 
+        if "plot_PL_img" in config:
+            photo = data.get("photo", {})
+            if "adj_photo" in photo and "adj_photo_exposure" in photo:
+                pl_imgs.append(
+                    {
+                        "image": photo["adj_photo"],
+                        "exporsure": photo["adj_photo_exposure"],
+                        "label": metadata["label"],
+                        "sample_id": data["metadata"].get("sample_id", None),
+                        "file_name": Path(h5_file).name,
+                    }
+                )
+
     print(
         f"Successfully processed {len(uv_vis_dfs)} files with UV-Vis data and {len(pl_dfs)} files with PL data."
     )
@@ -180,32 +238,28 @@ def main(config_path):
         print(f"Generating plot: {plot_config['output_file']}")
 
         # Filter data for the current plot
-        def match_filter(label, filt):
-            if "equals" in filt:
-                return (
-                    label.startswith(filt["equals"])
-                    and label[len(filt["equals"]) :].strip().isdigit()
-                )
-            elif "contains" in filt:
-                return filt["contains"] in label
-            return False
 
-        filtered_uv_vis_dfs = [
-            df
-            for df in uv_vis_dfs
-            if any(
-                match_filter(df["metadata"][0]["label"], filt)
-                for filt in plot_config["filters"]
-            )
-        ]
-        filtered_pl_dfs = [
-            df
-            for df in pl_dfs
-            if any(
-                match_filter(df["metadata"][0]["label"], filt)
-                for filt in plot_config["filters"]
-            )
-        ]
+        filters = plot_config.get("filters", None)
+        if filters is None:
+            filtered_uv_vis_dfs = uv_vis_dfs[:]
+            filtered_pl_dfs = pl_dfs[:]
+        else:
+            filtered_uv_vis_dfs = [
+                df
+                for df in uv_vis_dfs
+                if any(
+                    match_label_filter(df["metadata"][0]["label"], filt)
+                    for filt in filters
+                )
+            ]
+            filtered_pl_dfs = [
+                df
+                for df in pl_dfs
+                if any(
+                    match_label_filter(df["metadata"][0]["label"], filt)
+                    for filt in filters
+                )
+            ]
 
         filtered_uv_vis_dfs = sorted(
             filtered_uv_vis_dfs, key=lambda df: df["metadata"][0]["label"]
@@ -230,6 +284,8 @@ def main(config_path):
             )
             return get_color_func, get_linestyle_func
 
+        get_color_func, get_linestyle_func = get_style_funcs()
+
         # Create figure
         fig, ((ax_uv_abs_wl, ax_uv_abs_energy), (ax_pl_int_wl, ax_pl_int_energy)) = (
             plt.subplots(nrows=2, ncols=2, figsize=(13, 9), dpi=300)
@@ -238,7 +294,7 @@ def main(config_path):
             fig.suptitle(plot_config["title"], fontsize=16)
 
         # Plot UV-Vis data
-        get_color_func, get_linestyle_func = get_style_funcs()
+
         plot_single_column_data(
             ax_uv_abs_wl,
             filtered_uv_vis_dfs,
@@ -249,7 +305,6 @@ def main(config_path):
             get_linestyle_func=get_linestyle_func,
             get_color_func=get_color_func,
         )
-        # get_color_func, get_linestyle_func = get_style_funcs()
         plot_single_column_data(
             ax_uv_abs_energy,
             filtered_uv_vis_dfs,
@@ -262,7 +317,6 @@ def main(config_path):
         )
 
         # Plot PL data
-        # get_color_func, get_linestyle_func = get_style_funcs()
         plot_single_column_data(
             ax_pl_int_wl,
             filtered_pl_dfs,
@@ -273,7 +327,6 @@ def main(config_path):
             get_linestyle_func=get_linestyle_func,
             get_color_func=get_color_func,
         )
-        # get_color_func, get_linestyle_func = get_style_funcs()
         plot_single_column_data(
             ax_pl_int_energy,
             filtered_pl_dfs,
@@ -291,6 +344,57 @@ def main(config_path):
         fig.savefig(output_path, dpi=300, bbox_inches="tight")
         print(f"  Plot saved to: {output_path}")
         plt.close(fig)
+
+    pl_img_section = config.get("plot_PL_img", None)
+    if isinstance(pl_img_section, list):
+        for pl_img_config in pl_img_section:
+            # Filter images
+            filters = pl_img_config.get("filters", None)
+            if filters is None:
+                filtered_imgs = pl_imgs[:]
+            else:
+                filtered_imgs = [
+                    img
+                    for img in pl_imgs
+                    if any(match_label_filter(img["label"], filt) for filt in filters)
+                ]
+            # Normalize if requested
+            normalize = pl_img_config.get("normalize", False)
+            if normalize and filtered_imgs:
+                # print the max exposure-normalized internsity of each image first
+                for img in filtered_imgs:
+                    print(
+                        f"  Image {img['file_name']} max exposure-normalized intensity: {img['image'].max() / img['exporsure']}"
+                    )
+
+                max_normalized_intensity = max(
+                    [(img["image"].max() / img["exporsure"]) for img in filtered_imgs]
+                )
+
+                print(
+                    f"  Max exposure-normalized intensity across filtered images: {max_normalized_intensity}"
+                )
+
+                for img in filtered_imgs:
+                    img["normalized_img"] = (
+                        img["image"] / img["exporsure"]
+                    ) / max_normalized_intensity
+
+                # print the normalized max intensity for each image
+                for img in filtered_imgs:
+                    print(
+                        f"  Image {img['file_name']} normalized max intensity: {img['normalized_img'].max()}"
+                    )
+            # Plot
+            output_path = Path(config["data_dirs"][0]) / pl_img_config["output_file"]
+            plot_pl_img(
+                filtered_imgs,
+                output_file=output_path,
+                img_per_row=pl_img_config.get("img_per_row", 4),
+                colormap=pl_img_config.get("colormap", "gist_gray"),
+                x_offset=pl_img_config.get("x_offset", None),
+                normalize=pl_img_config.get("normalize", False),
+            )
 
 
 if __name__ == "__main__":

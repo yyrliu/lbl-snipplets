@@ -68,3 +68,17 @@ plots:
         colormap: 'viridis'
         n: 4
         cycle_by: "line"
+
+# Sample PL image plotting section
+plot_PL_img:
+  - output_file: "20250904_LPS_pre_5_PL_imgs_normalzed.jpg"
+    img_per_row: 4
+    colormap: "gist_gray"
+    x_offset: 600
+    normalize: true
+
+  - output_file: "20250904_LPS_pre_5_PL_imgs.jpg"
+    img_per_row: 4
+    colormap: "gist_gray"
+    x_offset: 600
+    normalize: false
