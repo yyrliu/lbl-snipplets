@@ -1,0 +1,93 @@
+# XRD Plot Config for xrd-plot.ipynb
+
+data_dirs:
+  - "G:/My Drive/LPS/20250904_LPS_pre_5/XRD"
+
+label_mapping:
+
+# Preprocessing: All .xy files are sorted by name and reindexed as 1.xy, 2.xy, ..., 16.xy
+# Label mapping uses the same pattern as h5 plots: {prefix}_{number} or {prefix}-{number}
+label_mapping:
+  - pattern: '^(?P<prefix>[A-Za-z0-9]*?)[-_]?(?P<number>\d+)$'
+    rules:
+      - prefix: ""
+        number_range: "1-2"
+        label: "0.3M-wash {number}"
+      - prefix: ""
+        number_range: "3-4"
+        label: "0.3M {number}"
+      - prefix: ""
+        number_range: "5-6"
+        label: "1.0M-wash {number}"
+      - prefix: ""
+        number_range: "7-8"
+        label: "1.0M {number}"
+      - prefix: ""
+        number_range: "9-12"
+        label: "Anneal {mapped_result} min (0.3M, no PMMA)"
+        number_mapping:
+          1: 20
+          2: 17
+          3: 13
+          4: 10
+
+plots:
+  - output_file: "20250904_LPS_pre_5_conc.jpg"
+    filters:
+      - {key: "label", equals: "0.3M "}
+      - {key: "label", equals: "1.0M "}
+    style:
+      linecolor:
+        colormap: 'tab10'
+        cycle_by: "prefix"
+      linestyle:
+        cycle_within: "prefix"
+    options:
+      xlim: [4, 33]
+      ylim: [100, null]
+      xlim_2: [15, 25]
+    peaks:
+      - { position: 5, label: "(002)", y_offset: 1.1 }
+      - { position: 10, label: "(004)"}
+      - { position: 15, label: "(006)"}
+      - { position: 12.5, label: "$\\mathregular{PbI_2}$", x_range: 0.8, y_offset: 1.4, fontdict: {size: 10} }
+
+  - output_file: "20250904_LPS_pre_5_wash.jpg"
+    filters:
+      - {key: "label", equals: "0.3M "}
+      - {key: "label", equals: "0.3M-wash "}
+      - {key: "label", contains: "1.0M"}
+      - { key: "label", contains: "1.0M-wash"}
+    style:
+      linecolor:
+        colormap: 'tab10'
+        cycle_by: "prefix"
+      linestyle:
+        cycle_within: "prefix"
+    options:
+      xlim: [4, 33]
+      ylim: [100, null]
+      xlim_2: [15, 25]
+    peaks:
+      - { position: 5, label: "(002)", y_offset: 1.1 }
+      - { position: 10, label: "(004)"}
+      - { position: 15, label: "(006)"}
+      - { position: 12.5, label: "$\\mathregular{PbI_2}$", x_range: 0.8, y_offset: 1.4, fontdict: {size: 10} }
+
+  - output_file: "20250904_LPS_pre_5_anneal_time.jpg"
+    filters:
+      - { key: "label", contains: "Anneal" }
+    style:
+      linecolor:
+        colormap: 'viridis'
+        n: 4
+        cycle_by: "line"
+    options:
+      xlim: [4, 33]
+      ylim: [100, null]
+      xlim_2: [5, 15]
+    peaks:
+      - { position: 5, label: "(002)", y_offset: 1.1 }
+      - { position: 10, label: "(004)"}
+      - { position: 15, label: "(006)"}
+      - { position: 12.5, label: "$\\mathregular{PbI_2}$", x_range: 0.8, y_offset: 1.4, fontdict: {size: 10} }
