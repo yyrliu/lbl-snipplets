@@ -12,67 +12,78 @@ def get_label_prefix(label):
         return label
 
 
-def get_linestyle_factory(ignore_out_of_range=False):
-    # Create a linestyle mapping using closure with dict for prefix tracking
-    linestyles = ["-", "--", ":", "-."]
-    prefix_iters = {}
-
-    def get_linestyle(label):
-        prefix = get_label_prefix(label)
-
-        try:
-            return next(prefix_iters[prefix])
-        except KeyError:
-            # If prefix not seen before, create a new iterator for linestyles
-            print(f"Creating new linestyle iterator for prefix: {prefix}")
-            prefix_iters[prefix] = iter(linestyles)
-            return next(prefix_iters[prefix])
-        except StopIteration as e:
-            if not ignore_out_of_range:
-                raise e
-
-            prefix_iters[prefix] = iter(linestyles)
-            return next(prefix_iters[prefix])
-
-    return get_linestyle
-
-
-def get_color_factory(
-    colormap="qualitative", n=None, cycle_by_prefix=True, colors=None
+def get_linestyle_factory(
+    cycle_within=None, ignore_out_of_range=False, linestyles=["-", "--", ":", "-."]
 ):
+    # Create a linestyle mapping using closure with dict for prefix tracking
+
+    if cycle_within is None:
+        return lambda label: None
+
+    if cycle_within == "prefix":
+        linestyle_iters = {}
+        linestyle_mapping = {}
+
+        def get_linestyle(label):
+            prefix = get_label_prefix(label)
+
+            # If prefix not seen before, assign new linestyle
+            if prefix not in linestyle_iters.keys():
+                linestyle_iters[prefix] = iter(linestyles)
+
+            if label not in linestyle_mapping.keys():
+                try:
+                    linestyle_mapping[label] = next(linestyle_iters[prefix])
+                except StopIteration:
+                    if ignore_out_of_range:
+                        linestyle_iters[prefix] = iter(linestyles)
+                        return next(linestyle_iters[prefix])
+                    else:
+                        raise ValueError(f"Ran out of linestyles for prefix: {prefix}")
+
+            return linestyle_mapping[label]
+
+        return get_linestyle
+
+    raise ValueError(f"Unknown cycle_within policy: {cycle_within}")
+
+
+def get_color_factory(colormap="tab10", n=None, cycle_by="prefix", colors=None):
     # Create a color mapping using closure with set for prefix tracking
     if colors is None:
-        if colormap == "qualitative":
-            colors = plt.colormaps.get_cmap("tab10").colors
-        elif colormap == "sequential":
-            colors = [
-                plt.colormaps.get_cmap("viridis").reversed()(i)
-                for i in linspace(0, 1, n or 6)
-            ]
-        else:
+        try:
+            cmap = plt.colormaps.get_cmap(colormap)
+            # If n is not provided, try to get it from the colormap, or default to 8
+            if n is None:
+                n = getattr(cmap, "N", 8)
+            colors = [cmap(i) for i in linspace(0, 1, n)]
+        except ValueError:
             raise ValueError(f"Unknown colormap: {colormap}")
 
-    if cycle_by_prefix:
-        prefix_colors = {}
-        used_prefixes = set()
+    if cycle_by == "prefix":
+        linecolors = {}
+        color_iter = iter(colors)
 
         def get_color(label):
             prefix = get_label_prefix(label)
 
             # If prefix not seen before, assign new color
-            if prefix not in used_prefixes:
-                used_prefixes.add(prefix)
-                color_index = len(used_prefixes) - 1
-                prefix_colors[prefix] = colors[color_index % len(colors)]
+            if prefix not in linecolors.keys():
+                linecolors[prefix] = next(color_iter)
 
-            return prefix_colors[prefix]
+            return linecolors[prefix]
 
         return get_color
 
-    else:
+    if cycle_by == "line":
         color_iter = iter(colors)
 
         def get_color(_):
-            return next(color_iter)
+            nonlocal color_iter
+            try:
+                return next(color_iter)
+            except StopIteration:
+                color_iter = iter(colors)
+                return next(color_iter)
 
         return get_color

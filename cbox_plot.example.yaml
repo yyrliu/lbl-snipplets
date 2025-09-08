@@ -1,0 +1,70 @@
+# Configuration for h5_plot_from_config.py
+
+# List of directories to search for .h5 files
+data_dirs:
+  - "G:/My Drive/LPS/20250904_LPS_pre_5/CBox"
+
+# Label mapping to generate plot labels from sample_name metadata
+# This provides a more flexible way to define labels than the original get_label function.
+# The script will iterate through this mapping and use the first match.
+# You can use simple string matching. The script will use the first match it finds.
+label_mapping:
+  - pattern: '^(?P<prefix>[A-Za-z0-9]*?)[-_]?(?P<number>\d+)$'
+    rules:
+      - prefix: ""
+        number_range: "1-2"
+        label: "0.3M-wash {number}"
+      - prefix: ""
+        number_range: "3-4"
+        label: "0.3M {number}"
+      - prefix: ""
+        number_range: "5-6"
+        label: "1.0M-wash {number}"
+      - prefix: ""
+        number_range: "7-8"
+        label: "1.0M {number}"
+      - prefix: ""
+        number_range: "9-12"
+        label: "Anneal {mapped_result} min (0.3M, no PMMA)"
+        number_mapping:
+          1: 20
+          2: 17
+          3: 13
+          4: 10
+
+# List of plots to generate. Each item in the list is a dictionary defining a plot.
+plots:
+  - output_file: "20250904_LPS_pre_5_conc.jpg"
+    # title: "GB Samples"
+    filters:
+      - {key: "label", equals: "0.3M "}
+      - {key: "label", equals: "1.0M "}
+    style:
+      linecolor:
+        colormap: 'tab10'
+        cycle_by: "prefix"
+      linestyle:
+        cycle_within: "prefix"
+
+  - output_file: "20250904_LPS_pre_5_wash.jpg"
+    # title: "Robot Samples"
+    filters:
+      - {key: "label", equals: "0.3M "}
+      - {key: "label", equals: "0.3M-wash "}
+      - {key: "label", contains: "1.0M"}
+    style:
+      linecolor:
+        colormap: 'tab10'
+        cycle_by: "prefix"
+      linestyle:
+        cycle_within: "prefix"
+
+  - output_file: "20250904_LPS_pre_5_anneal_time.jpg"
+    # title: "PbI2 Samples"
+    filters:
+      - { key: "label", contains: "Anneal" }
+    style:
+      linecolor:
+        colormap: 'viridis'
+        n: 4
+        cycle_by: "line"
