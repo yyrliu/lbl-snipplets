@@ -18,3 +18,8 @@ xrd = [
     "xylib-py>=1.6.1",
 ]
 
+[dependency-groups]
+dev = [
+    "pytest>=8.4.2",
+]
+

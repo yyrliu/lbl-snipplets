@@ -14,57 +14,7 @@ from h5_analysis import (
     wavelength_to_energy,
     apply_jacobian,
 )
-from plot_helper import get_color_factory, get_linestyle_factory
-
-
-def match_label_filter(label, filt):
-    """Reusable filter function for label matching."""
-    if "equals" in filt:
-        return (
-            label.startswith(filt["equals"])
-            and label[len(filt["equals"]) :].strip().isdigit()
-        )
-    elif "contains" in filt:
-        return filt["contains"] in label
-    return False
-
-
-def get_label_from_mapping(metadata, label_mapping):
-    """Extract a clean label from sample ID using regex-based mapping from config with number_range and offset."""
-    import re
-
-    sample_name_full = str(metadata.get("sample_name", ""))
-    default_pattern = "^(?P<prefix>[A-Za-z0-9]*?)[-_]?(?P<number>\d+)$"
-    for mapping in label_mapping:
-        mapping_pattern = mapping.get("pattern", default_pattern)
-        for rule in mapping.get("rules", []):
-            pattern = rule.get("pattern", mapping_pattern)
-            search = re.search(pattern, sample_name_full)
-            if search:
-                prefix = search.group("prefix") or ""
-                number = int(search.group("number"))
-                if prefix == rule.get("prefix", ""):
-                    range_str = rule.get("number_range", "")
-                    if range_str:
-                        try:
-                            min_num, max_num = map(int, range_str.split("-"))
-                        except Exception:
-                            continue
-                        if min_num <= number <= max_num:
-                            number_mapping = rule.get("number_mapping", None)
-                            offset_idx = number - min_num + 1
-                            if number_mapping:
-                                mapped_result = number_mapping.get(
-                                    offset_idx, offset_idx
-                                )
-                                label = rule["label"].format(
-                                    mapped_result=mapped_result
-                                )
-                            else:
-                                display_number = number if min_num == 1 else offset_idx
-                                label = rule["label"].format(number=display_number)
-                            return label
-    return f"Sample {sample_name_full}"
+from plot_helper import get_color_factory, get_linestyle_factory, get_label_from_mapping, match_label_filter
 
 
 def plot_single_column_data(
@@ -362,18 +312,18 @@ def main(config_path):
             normalize = pl_img_config.get("normalize", False)
             if normalize and filtered_imgs:
                 # print the max exposure-normalized internsity of each image first
-                for img in filtered_imgs:
-                    print(
-                        f"  Image {img['file_name']} max exposure-normalized intensity: {img['image'].max() / img['exporsure']}"
-                    )
+                # for img in filtered_imgs:
+                #     print(
+                #         f"  Image {img['file_name']} max exposure-normalized intensity: {img['image'].max() / img['exporsure']}"
+                #     )
 
                 max_normalized_intensity = max(
                     [(img["image"].max() / img["exporsure"]) for img in filtered_imgs]
                 )
 
-                print(
-                    f"  Max exposure-normalized intensity across filtered images: {max_normalized_intensity}"
-                )
+                # print(
+                #     f"  Max exposure-normalized intensity across filtered images: {max_normalized_intensity}"
+                # )
 
                 for img in filtered_imgs:
                     img["normalized_img"] = (
@@ -381,10 +331,10 @@ def main(config_path):
                     ) / max_normalized_intensity
 
                 # print the normalized max intensity for each image
-                for img in filtered_imgs:
-                    print(
-                        f"  Image {img['file_name']} normalized max intensity: {img['normalized_img'].max()}"
-                    )
+                # for img in filtered_imgs:
+                #     print(
+                #         f"  Image {img['file_name']} normalized max intensity: {img['normalized_img'].max()}"
+                #     )
             # Plot
             output_path = Path(config["data_dirs"][0]) / pl_img_config["output_file"]
             plot_pl_img(
