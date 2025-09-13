@@ -14,7 +14,12 @@ from h5_analysis import (
     wavelength_to_energy,
     apply_jacobian,
 )
-from plot_helper import get_color_factory, get_linestyle_factory, get_label_from_mapping, match_label_filter
+from plot_helper import (
+    get_color_factory,
+    get_linestyle_factory,
+    get_label_from_mapping,
+    match_label_filter,
+)
 
 
 def plot_single_column_data(
