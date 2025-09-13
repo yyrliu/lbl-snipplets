@@ -14,7 +14,7 @@ from plot_helper import (
 
 def load_config(config_path):
     """Load YAML configuration file."""
-    with open(config_path, "r") as f:
+    with open(config_path, "r", encoding="utf-8") as f:
         return yaml.safe_load(f)
 
 

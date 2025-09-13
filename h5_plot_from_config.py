@@ -109,7 +109,7 @@ def plot_pl_img(
 
 def main(config_path):
     """Main function to generate plots from H5 files based on a YAML config."""
-    with open(config_path, "r") as f:
+    with open(config_path, "r", encoding="utf-8") as f:
         config = yaml.safe_load(f)
 
     # Discover H5 files
