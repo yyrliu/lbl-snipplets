@@ -18,7 +18,7 @@ def load_config(config_path):
 
 def find_xy_files(data_dirs, file_pattern="**/*merge.xy"):
     """Find XY files matching the specified pattern.
-    
+
     Args:
         data_dirs: List of directories to search
         file_pattern: Glob pattern for files (default: "**/*merge.xy" for regular XRD)
@@ -52,7 +52,18 @@ def load_xy_data(xy_files, label_mapping):
     return df_all
 
 
-def plot_xrd(df, plot_cfg, data_dir=None):
+def plot_xrd(df, plot_cfg, data_dir=None, index_offsets=None):
+    """
+    Plot XRD data with optional index offsets for peak alignment.
+
+    Args:
+        df: DataFrame with XRD data
+        plot_cfg: Plot configuration dictionary
+        data_dir: Directory to save plots
+        index_offsets: Dictionary mapping sample labels to 2theta offsets in degrees.
+                      Used to correct for sample displacement or align peaks.
+                      Example: {"Sample A": 0.1, "Sample B": -0.05}
+    """
     cols = filter_columns(df, plot_cfg.get("filters", []))
     fig, axs = plt.subplots(nrows=1, ncols=2, figsize=(13, 5), dpi=300, layout="tight")
 
@@ -61,11 +72,17 @@ def plot_xrd(df, plot_cfg, data_dir=None):
     get_color = get_color_factory(**style_config.get("linecolor", {}))
     get_linestyle = get_linestyle_factory(**style_config.get("linestyle", {}))
 
+    # Use provided index_offsets or default to empty dict
+    if index_offsets is None:
+        index_offsets = {}
+
     for ax in axs:
         for col in sorted(cols):
             df_to_plot = df[[col]].dropna()
+            # Apply index offset if specified for this column
+            x_data = df_to_plot.index + index_offsets.get(col, 0.0)
             ax.plot(
-                df_to_plot.index,
+                x_data,
                 df_to_plot[col],
                 label=col,
                 linestyle=get_linestyle(col),
@@ -84,7 +101,9 @@ def plot_xrd(df, plot_cfg, data_dir=None):
 
         # Add peak labels using the smart positioning function
         for peak in plot_cfg.get("peaks", []):
-            # Use the filtered data for peak positioning
+            # For peak positioning, we need to account for the fact that data has been shifted
+            # but the peak position in config is given in the original coordinate system
+            # So we use the original filtered data for peak positioning
             filtered_df = df[cols]
             add_peak_label(
                 ax,
@@ -99,7 +118,6 @@ def plot_xrd(df, plot_cfg, data_dir=None):
     axs[0].set_xlim(*plot_cfg["options"]["xlim"])
     if "xlim_2" in plot_cfg["options"]:
         axs[1].set_xlim(*plot_cfg["options"]["xlim_2"])
-
 
     # Construct output path - save to data directory if provided, otherwise use current directory
     if data_dir:
@@ -118,17 +136,20 @@ def main():
     parser.add_argument("--config", type=str, required=True)
     args = parser.parse_args()
     cfg = load_config(args.config)
-    
+
     # Use file_pattern from config, default to merge files for regular XRD analysis
     file_pattern = cfg.get("file_pattern", "**/*merge.xy")
     xy_files = find_xy_files(cfg["data_dirs"], file_pattern)
     df = load_xy_data(xy_files, cfg["label_mapping"])
 
+    # Read index offsets from config (optional)
+    index_offsets = cfg.get("index_offsets", {})
+
     # Use the first data directory for saving plots
     data_dir = cfg["data_dirs"][0] if cfg["data_dirs"] else None
 
     for plot_cfg in cfg["plots"]:
-        plot_xrd(df, plot_cfg, data_dir)
+        plot_xrd(df, plot_cfg, data_dir, index_offsets)
 
 
 if __name__ == "__main__":
