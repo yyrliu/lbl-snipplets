@@ -96,17 +96,82 @@ def test_get_label_from_mapping_with_prefix():
     assert get_label_from_mapping("Unknown1", label_mapping) == "Sample Unknown1"
 
 
+def test_get_label_from_mapping_single_number_range():
+    """Test get_label_from_mapping with single number number_range."""
+    label_mapping = [
+        {
+            "pattern": r"^(?P<prefix>[A-Za-z0-9]*?)[-_]?(?P<number>\d+)$",
+            "rules": [
+                # Test single number as string
+                {"prefix": "", "number_range": "3", "label": "Single sample {number}"},
+                # Test single number as integer
+                {"prefix": "", "number_range": 5, "label": "Integer single {number}"},
+                # Test range format (for comparison)
+                {"prefix": "", "number_range": "7-9", "label": "Range {number}"},
+                # Test single number with number_mapping
+                {
+                    "prefix": "",
+                    "number_range": "10",
+                    "label": "Mapped single {mapped_result}",
+                    "number_mapping": {1: 42},
+                },
+            ],
+        }
+    ]
+
+    # Test single number string format
+    assert get_label_from_mapping("3", label_mapping) == "Single sample 1"
+    assert get_label_from_mapping("2", label_mapping) == "Sample 2"  # Not in range
+    assert get_label_from_mapping("4", label_mapping) == "Sample 4"  # Not in range
+
+    # Test single number integer format
+    assert get_label_from_mapping("5", label_mapping) == "Integer single 1"
+    assert get_label_from_mapping("6", label_mapping) == "Sample 6"  # Not in range
+
+    # Test range format still works
+    assert get_label_from_mapping("7", label_mapping) == "Range 1"
+    assert get_label_from_mapping("8", label_mapping) == "Range 2"
+    assert get_label_from_mapping("9", label_mapping) == "Range 3"
+
+    # Test single number with number_mapping
+    assert get_label_from_mapping("10", label_mapping) == "Mapped single 42"
+
+    # Test prefixed single numbers
+    label_mapping_prefix = [
+        {
+            "pattern": r"^(?P<prefix>[A-Za-z0-9]+)[-_]?(?P<number>\d+)$",
+            "rules": [
+                {"prefix": "GB", "number_range": "2", "label": "GB single {number}"},
+                {
+                    "prefix": "Robot",
+                    "number_range": 4,
+                    "label": "Robot single {number}",
+                },
+            ],
+        }
+    ]
+
+    assert get_label_from_mapping("GB2", label_mapping_prefix) == "GB single 1"
+    assert (
+        get_label_from_mapping("GB3", label_mapping_prefix) == "Sample GB3"
+    )  # Not in range
+    assert get_label_from_mapping("Robot4", label_mapping_prefix) == "Robot single 1"
+    assert (
+        get_label_from_mapping("Robot5", label_mapping_prefix) == "Sample Robot5"
+    )  # Not in range
+
+
 def test_match_label_filter():
     """Test match_label_filter function for various filter types."""
 
-    # Test equals filter with prefix and digit
+    # Test equals filter with prefix and digit or tag
     equals_filter = {"key": "label", "equals": "0.3M "}
     assert match_label_filter("0.3M 1", equals_filter)
     assert match_label_filter("0.3M 2", equals_filter)
+    assert match_label_filter("0.3M abc", equals_filter)
     assert not match_label_filter("0.3M-wash 1", equals_filter)  # Different prefix
     assert not match_label_filter("1.0M 1", equals_filter)  # Different prefix
     assert not match_label_filter("0.3M", equals_filter)  # No digit after
-    assert not match_label_filter("0.3M abc", equals_filter)  # Not a digit
 
     # Test contains filter
     contains_filter = {"key": "label", "contains": "Anneal"}

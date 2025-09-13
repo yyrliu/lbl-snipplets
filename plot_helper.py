@@ -115,7 +115,12 @@ def get_label_from_mapping(metadata_or_str, label_mapping):
                     range_str = rule.get("number_range", "")
                     if range_str:
                         try:
-                            min_num, max_num = map(int, range_str.split("-"))
+                            # Handle both single number and range format
+                            if "-" in str(range_str):
+                                min_num, max_num = map(int, str(range_str).split("-"))
+                            else:
+                                # Single number case
+                                min_num = max_num = int(range_str)
                         except Exception:
                             continue
                         if min_num <= number <= max_num:
@@ -140,7 +145,7 @@ def match_label_filter(label, filt):
     if "equals" in filt:
         return (
             label.startswith(filt["equals"])
-            and label[len(filt["equals"]) :].strip().isdigit()
+            and len(label[len(filt["equals"]) :].split(" ")) == 1
         )
     elif "contains" in filt:
         return filt["contains"] in label
