@@ -100,7 +100,7 @@ def plot_pl_img(
         v_range = {"vmin": 0, "vmax": 1} if normalize else {"vmin": 0, "vmax": 255}
 
         ax.imshow(img, cmap=colormap, aspect="equal", **v_range)
-        ax.set_title(img_dict.get("label", ""))
+        ax.set_title(img_dict.get("label", ""), fontdict={'fontsize': 28})
         ax.axis("off")
     # Hide unused axes
     for idx in range(n_imgs, n_rows * img_per_row):
@@ -188,8 +188,10 @@ def main(config_path):
         f"Successfully processed {len(uv_vis_dfs)} files with UV-Vis data and {len(pl_dfs)} files with PL data."
     )
 
+    plots = config.get("plots", [])
+
     # Generate plots based on the configuration
-    for plot_config in config["plots"]:
+    for plot_config in plots:
         print(f"Generating plot: {plot_config['output_file']}")
 
         # Filter data for the current plot
