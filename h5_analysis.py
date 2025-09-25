@@ -246,7 +246,35 @@ def read_h5_file(file_path):
 
 
 def process_uv_vis_data(wl_data, wls_range=None):
-    """Process UV-Vis spectroscopy data."""
+    """Process UV-Vis spectroscopy data with averaging (wrapper for backward compatibility)."""
+    # Get individual spectra
+    raw_results = process_uv_vis_data_raw(wl_data, wls_range)
+
+    # Calculate averages
+    transmittance_avg = np.mean(raw_results["transmission"], axis=0)
+    absorption_avg = np.mean(raw_results["absorption"], axis=0)
+    absorption_jacobian_avg = np.mean(raw_results["absorption_jacobian"], axis=0)
+
+    # Calculate transmittance metrics
+    wl0, wl1 = 550, 800
+    wavelength = raw_results["wavelength"]
+    int_slice = (wavelength >= wl0) & (wavelength <= wl1)
+    integrated_transmittance = np.sum(transmittance_avg[int_slice])
+    mean_transmittance = np.mean(transmittance_avg[int_slice])
+
+    return {
+        "wavelength": raw_results["wavelength"],
+        "energy": raw_results["energy"],
+        "transmission": transmittance_avg,
+        "absorption": absorption_avg,
+        "absorption_jacobian": absorption_jacobian_avg,
+        "mean_transmittance": mean_transmittance,
+        "integrated_transmittance": integrated_transmittance,
+    }
+
+
+def process_uv_vis_data_raw(wl_data, wls_range=None):
+    """Process UV-Vis spectroscopy data without averaging - returns individual spectra."""
     # Extract data
     wl_dark_int_time = wl_data["wl_dark_int_time"]
     wl_dark_spectrum = wl_data["wl_dark_spectrum"]
@@ -261,52 +289,88 @@ def process_uv_vis_data(wl_data, wls_range=None):
 
     # Remove sample spectra outside the specified wavelength range
     valid_indices = (wl_wave_axis >= wls_range[0]) & (wl_wave_axis <= wls_range[1])
-    wl_wave_axis = wl_wave_axis[valid_indices]
-    wl_dark_spectrum = wl_dark_spectrum[valid_indices]
-    wl_samp_spectrum = wl_samp_spectrum[:, valid_indices]
-    wl_ref_spectrum = wl_ref_spectrum[valid_indices]
+    wl_wave_axis_filtered = wl_wave_axis[valid_indices]
+    wl_dark_spectrum_filtered = wl_dark_spectrum[valid_indices]
+    wl_samp_spectrum_filtered = wl_samp_spectrum[:, valid_indices]
+    wl_ref_spectrum_filtered = wl_ref_spectrum[valid_indices]
 
-    # Data processing
-    time_nornalized_transmitted_intensity = (
-        wl_samp_spectrum / wl_samp_int_times.reshape((8, 1))
-        - wl_dark_spectrum / wl_dark_int_time
+    # Calculate individual transmitted intensities
+    time_normalized_transmitted_intensity = (
+        wl_samp_spectrum_filtered / wl_samp_int_times.reshape((-1, 1))
+        - wl_dark_spectrum_filtered / wl_dark_int_time
     )
-    average_transmitted_intensity = np.mean(
-        time_nornalized_transmitted_intensity, axis=0
-    )  # Average individual spectra per sample
-    time_nornalized_reference = (
-        wl_ref_spectrum / wl_ref_int_time - wl_dark_spectrum / wl_dark_int_time
+
+    time_normalized_reference = (
+        wl_ref_spectrum_filtered / wl_ref_int_time
+        - wl_dark_spectrum_filtered / wl_dark_int_time
     )
-    transmittance = (
-        average_transmitted_intensity / time_nornalized_reference
-    )  # Divide by the reference
 
-    # Calculate derived spectra with improved handling of invalid values
-    # Clip transmission to avoid log(0) or log(negative values)
-    absorption_spectrum = -np.log10(np.clip(transmittance, 1e-4, None))
+    # Individual transmittance (2D)
+    transmittance_2d = time_normalized_transmitted_intensity / time_normalized_reference
 
-    wl_energy_axis = wavelength_to_energy(wl_wave_axis)
-    absorption_spectrum_jacobian = apply_jacobian(absorption_spectrum, wl_wave_axis)
+    # Individual absorption (2D)
+    absorption_2d = -np.log10(np.clip(transmittance_2d, 1e-4, None))
 
-    # Calculate transmittance metrics
-    wl0, wl1 = 550, 800
-    int_slice = (wl_wave_axis >= wl0) & (wl_wave_axis <= wl1)
-    integrated_transmittance = np.sum(transmittance[int_slice])
-    mean_transmittance = np.mean(transmittance[int_slice])
+    # Individual absorption with Jacobian (2D)
+    absorption_jacobian_2d = np.array(
+        [
+            apply_jacobian(absorption_2d[i], wl_wave_axis_filtered)
+            for i in range(absorption_2d.shape[0])
+        ]
+    )
+
+    # Energy scale
+    wl_energy_axis = wavelength_to_energy(wl_wave_axis_filtered)
 
     return {
-        "wavelength": wl_wave_axis,
+        "wavelength": wl_wave_axis_filtered,
         "energy": wl_energy_axis,
-        "transmission": transmittance,
-        "absorption": absorption_spectrum,
-        "absorption_jacobian": absorption_spectrum_jacobian,
-        "mean_transmittance": mean_transmittance,
-        "integrated_transmittance": integrated_transmittance,
+        "absorption": absorption_2d,
+        "absorption_jacobian": absorption_jacobian_2d,
+        "transmission": transmittance_2d,
+        "num_spectra": absorption_2d.shape[0],
     }
 
 
 def process_pl_data(pl_data, wls_range=None):
-    """Process PL spectroscopy data."""
+    """Process PL spectroscopy data with averaging (wrapper for backward compatibility)."""
+    # Get individual spectra
+    raw_results = process_pl_data_raw(pl_data, wls_range)
+
+    # Calculate averages
+    intensity_avg = np.mean(raw_results["intensity"], axis=0)
+    intensity_jacobian_avg = np.mean(raw_results["intensity_jacobian"], axis=0)
+
+    # Create processed_spectra list for backward compatibility
+    processed_spectra = []
+    for i in range(raw_results["num_spectra"]):
+        processed_spectra.append(
+            {
+                "wavelength": raw_results["wavelength"],
+                "energy": raw_results["energy"],
+                "intensity": raw_results["intensity"][i],
+                "intensity_jacobian": raw_results["intensity_jacobian"][i],
+            }
+        )
+
+    # Create averaged spectrum
+    average_spectrum = {
+        "wavelength": raw_results["wavelength"],
+        "energy": raw_results["energy"],
+        "intensity": intensity_avg,
+        "intensity_jacobian": intensity_jacobian_avg,
+    }
+
+    return {
+        "full_wavelength": pl_data["pl_wls"],  # Full original wavelength axis
+        "processed_spectra": processed_spectra,
+        "num_spectra": raw_results["num_spectra"],
+        "average_spectrum": average_spectrum,
+    }
+
+
+def process_pl_data_raw(pl_data, wls_range=None):
+    """Process PL spectroscopy data without averaging - returns individual spectra."""
     # Extract data
     dark_int_time = pl_data["pl_dark_int_time"]
     dark_spectrum = pl_data["pl_dark_spectrum"]
@@ -314,58 +378,47 @@ def process_pl_data(pl_data, wls_range=None):
     spectra = pl_data["pl_spectra"]
     wls = pl_data["pl_wls"]
 
-    # Process each spectrum
-    processed_spectra = []
+    if wls_range is None:
+        wls_range = (min(wls), max(wls))
 
-    for i in range(spectra.shape[0]):
+    # Select wavelength range for analysis
+    lowQ_idx = find_nearest(wls, wls_range[0])
+    highQ_idx = find_nearest(wls, wls_range[1])
+
+    wavelength_filtered = wls[lowQ_idx:highQ_idx]
+    dark_spectrum_filtered = dark_spectrum[lowQ_idx:highQ_idx]
+    spectra_filtered = spectra[:, lowQ_idx:highQ_idx]
+
+    # Process individual spectra
+    individual_spectra = []
+    individual_jacobian_spectra = []
+
+    for i in range(spectra_filtered.shape[0]):
         # Time normalization
         time_normalized_intensity = np.divide(
-            spectra[i], spec_int_times[i]
-        ) - np.divide(dark_spectrum, dark_int_time)
+            spectra_filtered[i], spec_int_times[i]
+        ) - np.divide(dark_spectrum_filtered, dark_int_time)
 
-        if wls_range is None:
-            wls_range = (min(wls), max(wls))
-        # Select wavelength range for analysis (default: 650-950 nm)
-        lowQ_idx = find_nearest(wls, wls_range[0])
-        highQ_idx = find_nearest(wls, wls_range[1])
-
-        x = wls[lowQ_idx:highQ_idx]
-        y = time_normalized_intensity[lowQ_idx:highQ_idx]
+        individual_spectra.append(time_normalized_intensity)
 
         # Convert to energy scale and apply Jacobian
-        energies = wavelength_to_energy(x)
-        transformed_signal = apply_jacobian(y, x)
-
-        processed_spectra.append(
-            {
-                "wavelength": x,
-                "energy": energies,
-                "intensity": y,
-                "intensity_jacobian": transformed_signal,
-            }
+        energies = wavelength_to_energy(wavelength_filtered)
+        transformed_signal = apply_jacobian(
+            time_normalized_intensity, wavelength_filtered
         )
+        individual_jacobian_spectra.append(transformed_signal)
 
-    # Create averaged spectrum
-    average_spectrum = None
-    if processed_spectra:
-        avg_spectrum = np.mean([s["intensity"] for s in processed_spectra], axis=0)
-        avg_energies = wavelength_to_energy(processed_spectra[0]["wavelength"])
-        transformed_avg_signal = apply_jacobian(
-            avg_spectrum, processed_spectra[0]["wavelength"]
-        )
-
-        average_spectrum = {
-            "wavelength": processed_spectra[0]["wavelength"],
-            "energy": avg_energies,
-            "intensity": avg_spectrum,
-            "intensity_jacobian": transformed_avg_signal,
-        }
+    # Convert to 2D arrays
+    intensity_2d = np.array(individual_spectra)
+    intensity_jacobian_2d = np.array(individual_jacobian_spectra)
+    energies = wavelength_to_energy(wavelength_filtered)
 
     return {
-        "full_wavelength": wls,
-        "processed_spectra": processed_spectra,
-        "num_spectra": len(processed_spectra),
-        "average_spectrum": average_spectrum,
+        "wavelength": wavelength_filtered,
+        "energy": energies,
+        "intensity": intensity_2d,
+        "intensity_jacobian": intensity_jacobian_2d,
+        "num_spectra": intensity_2d.shape[0],
     }
 
 
