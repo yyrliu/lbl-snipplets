@@ -7,58 +7,69 @@ into a unified HDF5 structure for comprehensive analysis.
 OPTIMIZATION: Photo data (/results/cbox/photo/image) is now softlinked to /measurement/spec_run/adj_photo
 instead of being copied, eliminating redundancy and saving storage space.
 
-H5 Data Structure (results group):
-=================================
+H5 Data Structure:
+==================
 
-results/                          # New processed results group
-├── cbox/                        # CBox spectroscopy results
-│   ├── uv_vis/
-│   │   ├── wavelength           # 1D array [n_wavelengths]
-│   │   ├── energy               # 1D array [n_wavelengths]
-│   │   ├── absorption           # 2D array [N, n_wavelengths] (individual spectra)
-│   │   ├── absorption_avg       # 1D array [n_wavelengths] (averaged spectrum)
-│   │   ├── absorption_jacobian  # 2D array [N, n_wavelengths] (individual with Jacobian)
-│   │   ├── absorption_jacobian_avg # 1D array [n_wavelengths] (averaged with Jacobian)
-│   │   ├── transmission         # 2D array [N, n_wavelengths] (individual spectra)
-│   │   ├── transmission_avg     # 1D array [n_wavelengths] (averaged spectrum)
-│   │   └── num_spectra          # Scalar (number of individual spectra, typically 8)
+Root level:
+├── measurement/                 # Original measurement data (preserved)
+├── results/                     # New processed results group
+│   ├── cbox/                   # CBox spectroscopy results
+│   │   ├── uv_vis/
+│   │   │   ├── wavelength      # 1D array [n_wavelengths]
+│   │   │   ├── energy          # 1D array [n_wavelengths]
+│   │   │   ├── absorption      # 2D array [N, n_wavelengths] (individual spectra)
+│   │   │   ├── absorption_avg  # 1D array [n_wavelengths] (averaged spectrum)
+│   │   │   ├── absorption_jacobian  # 2D array [N, n_wavelengths] (individual with Jacobian)
+│   │   │   ├── absorption_jacobian_avg # 1D array [n_wavelengths] (averaged with Jacobian)
+│   │   │   ├── transmission    # 2D array [N, n_wavelengths] (individual spectra)
+│   │   │   ├── transmission_avg # 1D array [n_wavelengths] (averaged spectrum)
+│   │   │   └── num_spectra     # Scalar (number of individual spectra, typically 8)
+│   │   │
+│   │   ├── pl/
+│   │   │   ├── wavelength      # 1D array [n_wavelengths]
+│   │   │   ├── energy          # 1D array [n_wavelengths]
+│   │   │   ├── intensity       # 2D array [N, n_wavelengths] (individual spectra)
+│   │   │   ├── intensity_avg   # 1D array [n_wavelengths] (averaged spectrum)
+│   │   │   ├── intensity_jacobian   # 2D array [N, n_wavelengths] (individual with Jacobian)
+│   │   │   ├── intensity_jacobian_avg # 1D array [n_wavelengths] (averaged with Jacobian)
+│   │   │   └── num_spectra     # Scalar (number of individual spectra)
+│   │   │
+│   │   └── photo/
+│   │       ├── image           # Softlink to /measurement/spec_run/adj_photo (avoids redundancy)
+│   │       └── exposure        # Scalar (adj_photo_exposure)
 │   │
-│   ├── pl/
-│   │   ├── wavelength           # 1D array [n_wavelengths]
-│   │   ├── energy               # 1D array [n_wavelengths]
-│   │   ├── intensity            # 2D array [N, n_wavelengths] (individual spectra)
-│   │   ├── intensity_avg        # 1D array [n_wavelengths] (averaged spectrum)
-│   │   ├── intensity_jacobian   # 2D array [N, n_wavelengths] (individual with Jacobian)
-│   │   ├── intensity_jacobian_avg # 1D array [n_wavelengths] (averaged with Jacobian)
-│   │   └── num_spectra          # Scalar (number of individual spectra)
+│   ├── cd/                     # Circular dichroism results
+│   │   ├── wavelength          # 1D array
+│   │   ├── front_CD            # 1D array
+│   │   ├── back_CD             # 1D array
+│   │   ├── front_abs           # 1D array
+│   │   ├── back_abs            # 1D array
+│   │   ├── gen_CD              # 1D array (genuine CD)
+│   │   ├── ldlb_CD             # 1D array (linear dichroism + birefringence)
+│   │   ├── abs_avg             # 1D array (average absorbance)
+│   │   ├── g_factor            # 1D array (g-factor: gen_CD / (abs_avg * 32980))
+│   │   └── file_info/
+│   │       ├── front_file      # String (source filename)
+│   │       └── back_file       # String (source filename)
 │   │
-│   └── photo/
-│       ├── image                # Softlink to /measurement/spec_run/adj_photo (avoids redundancy)
-│       └── exposure             # Scalar (adj_photo_exposure)
+│   └── xrd/                    # X-ray diffraction results
+│       ├── 2theta_Cu           # 1D array (Cu K-alpha scale)
+│       ├── 2theta_Co           # 1D array (original Co K-alpha scale)
+│       ├── int                 # 1D array (intensity)
+│       └── file_info/
+│           └── source_file     # String (source filename)
 │
-├── cd/                          # Circular dichroism results
-│   ├── wavelength               # 1D array
-│   ├── front_CD                 # 1D array
-│   ├── back_CD                  # 1D array
-│   ├── front_abs                # 1D array
-│   ├── back_abs                 # 1D array
-│   ├── gen_CD                   # 1D array (genuine CD)
-│   ├── ldlb_CD                  # 1D array (linear dichroism + birefringence)
-│   ├── abs_avg                  # 1D array (average absorbance)
-│   ├── g_factor                 # 1D array (g-factor: gen_CD / (abs_avg * 32980))
-│   └── file_info/
-│       ├── front_file           # String (source filename)
-│       └── back_file            # String (source filename)
-│
-└── xrd/                         # X-ray diffraction results
-    ├── 2theta_Cu                # 1D array (Cu K-alpha scale)
-    ├── 2theta_Co                # 1D array (original Co K-alpha scale)
-    ├── int                      # 1D array (intensity)
-    └── file_info/
-        └── source_file          # String (source filename)
+└── process_params/             # Process parameters from recipes.json (ROOT LEVEL)
+    ├── annealing_temp          # Scalar (annealing temperature)
+    ├── annealing_time          # Scalar (annealing time)
+    ├── dispense_volume         # Scalar (dispense volume)
+    ├── spin_speed              # Scalar (spin speed)
+    ├── dispense_speed          # Scalar (dispense speed)
+    └── concentration           # Scalar (concentration)
 """
 
 import h5py
+import json
 import numpy as np
 import pandas as pd
 from pathlib import Path
@@ -174,6 +185,51 @@ def create_xrd_filename_mapping(base_dir: str) -> Dict[str, str]:
                 )
 
     return mapping
+
+
+def load_recipes_json(base_dir: str, num_h5_files: int) -> Optional[List[Dict]]:
+    """
+    Load and validate recipes.json file from the base directory.
+
+    Args:
+        base_dir: Base directory containing recipes.json file
+        num_h5_files: Expected number of H5 files to validate against
+
+    Returns:
+        List of recipe dictionaries if successful, None if failed
+    """
+    recipes_path = Path(base_dir) / "recipes.json"
+
+    if not recipes_path.exists():
+        print(f"Warning: recipes.json not found in {base_dir}")
+        return None
+
+    try:
+        with open(recipes_path, "r", encoding="utf-8") as f:
+            recipes = json.load(f)
+
+        if not isinstance(recipes, list):
+            print(f"Error: recipes.json should contain a list, got {type(recipes)}")
+            return None
+
+        if len(recipes) != num_h5_files:
+            print(
+                f"Warning: recipes.json has {len(recipes)} entries but found {num_h5_files} H5 files"
+            )
+            print(
+                "Number of recipes should match number of H5 files for proper indexing"
+            )
+            return None
+
+        print(f"Successfully loaded recipes.json with {len(recipes)} entries")
+        return recipes
+
+    except json.JSONDecodeError as e:
+        print(f"Error parsing recipes.json: {e}")
+        return None
+    except Exception as e:
+        print(f"Error reading recipes.json: {e}")
+        return None
 
 
 def process_cbox_data(h5_data: Dict) -> Dict:
@@ -356,6 +412,7 @@ def save_results_to_h5(
     cbox_data: Dict,
     cd_data: Optional[Dict],
     xrd_data: Optional[Dict],
+    process_params: Optional[Dict] = None,
 ):
     """
     Save processed results to a new H5 file in the 'results' group.
@@ -366,6 +423,7 @@ def save_results_to_h5(
         cbox_data: Processed CBox data
         cd_data: Processed CD data (optional)
         xrd_data: Processed XRD data (optional)
+        process_params: Process parameters from recipes.json (optional)
     """
     # Create output directory if it doesn't exist
     output_path = Path(output_h5_path)
@@ -452,11 +510,30 @@ def save_results_to_h5(
                 else:
                     xrd_grp.create_dataset(key, data=value)
 
+        # Save process parameters at root level (not under results)
+        if process_params:
+            # Delete existing process_params group if it exists
+            if "process_params" in hf:
+                del hf["process_params"]
+            process_grp = hf.create_group("process_params")
+            for key, value in process_params.items():
+                if isinstance(value, str):
+                    # Store strings as UTF-8 encoded datasets
+                    process_grp.create_dataset(key, data=value.encode("utf-8"))
+                elif isinstance(value, (int, float)):
+                    # Store numeric values directly
+                    process_grp.create_dataset(key, data=value)
+                else:
+                    # Convert other types to string and encode
+                    process_grp.create_dataset(key, data=str(value).encode("utf-8"))
+
 
 def process_single_h5_file(
     h5_file_path: str,
     base_dir: str,
     xrd_filename_mapping: Optional[Dict[str, str]] = None,
+    recipes: Optional[List[Dict]] = None,
+    file_index: Optional[int] = None,
     verbose: bool = True,
 ) -> bool:
     """
@@ -466,6 +543,8 @@ def process_single_h5_file(
         h5_file_path: Path to the H5 file
         base_dir: Base directory containing subdirectories (CBox, CD, XRD)
         xrd_filename_mapping: Pre-computed mapping of sample[:13] to XRD filenames
+        recipes: List of process parameters from recipes.json (optional)
+        file_index: Index of current file in the processing order (optional)
         verbose: Whether to print progress information
 
     Returns:
@@ -487,13 +566,7 @@ def process_single_h5_file(
         h5_path = Path(h5_file_path)
         base_path = Path(base_dir)
 
-        # Get relative path from base_dir and create output path
-        try:
-            rel_path = h5_path.relative_to(base_path)
-            output_h5_path = base_path / "preprocessed" / rel_path
-        except ValueError:
-            # Fallback if relative path calculation fails
-            output_h5_path = base_path / "preprocessed" / h5_path.name
+        output_h5_path = Path(base_path, "preprocessed", h5_path.name)
 
         # Find associated files
         print("Finding associated files...")
@@ -532,10 +605,22 @@ def process_single_h5_file(
             except Exception as e:
                 print(f"Failed to process XRD data: {e}")
 
+        # Extract process parameters for this file
+        process_params = None
+        if recipes and file_index is not None and 0 <= file_index < len(recipes):
+            process_params = recipes[file_index]
+            if verbose:
+                print(f"Using process parameters for file index {file_index}")
+
         # Save results to new H5 file in preprocessed directory
         print("Saving results...")
         save_results_to_h5(
-            h5_file_path, str(output_h5_path), cbox_data, cd_data, xrd_data
+            h5_file_path,
+            str(output_h5_path),
+            cbox_data,
+            cd_data,
+            xrd_data,
+            process_params,
         )
 
         if verbose:
@@ -720,12 +805,33 @@ def process_h5_files_batch(
     Returns:
         List of successfully processed H5 files
     """
-    # Create XRD filename mappings for each directory
+    # Create XRD filename mappings and load recipes for each directory
     xrd_mappings = {}
+    recipes_by_dir = {}
+
     for base_dir in base_dirs:
         if verbose:
             print(f"Creating XRD filename mapping for {base_dir}...")
         xrd_mappings[base_dir] = create_xrd_filename_mapping(base_dir)
+
+        # Find H5 files for this directory to get count
+        base_path = Path(base_dir)
+        if base_path.exists():
+            cbox_dir = base_path / "CBox"
+            if cbox_dir.exists():
+                h5_files = list(cbox_dir.rglob("*.h5"))
+                filtered_files_dict_temp, _ = filter_h5_files(
+                    [str(f) for f in h5_files]
+                )
+                h5_count = len(filtered_files_dict_temp)
+
+                if verbose:
+                    print(
+                        f"Loading recipes for {base_dir} (expecting {h5_count} entries)..."
+                    )
+                recipes_by_dir[base_dir] = load_recipes_json(base_dir, h5_count)
+            else:
+                recipes_by_dir[base_dir] = None
 
     # Find all H5 files in CBox subdirectories
     all_h5_files = []
@@ -773,14 +879,13 @@ def process_h5_files_batch(
     if verbose:
         print(f"Found {len(filtered_h5_files)} H5 files to process")
 
-    # Process each H5 file
+    # Process files grouped by directory to maintain proper indexing for recipes
     processed_files = []
     failed_files = []
 
+    # Group files by their base directory
+    files_by_dir = {}
     for h5_file in filtered_h5_files:
-        print(f"Processing file: {h5_file} (type: {type(h5_file)})")
-
-        # Determine which base directory this H5 file belongs to
         h5_path = Path(h5_file)
         base_dir = None
 
@@ -798,14 +903,29 @@ def process_h5_files_batch(
             failed_files.append(h5_file)
             continue
 
-        print(f"Using base directory: {base_dir}")
-        success = process_single_h5_file(
-            h5_file, base_dir, xrd_mappings.get(base_dir), verbose=verbose
-        )
-        if success:
-            processed_files.append(h5_file)
-        else:
-            failed_files.append(h5_file)
+        if base_dir not in files_by_dir:
+            files_by_dir[base_dir] = []
+        files_by_dir[base_dir].append(h5_file)
+
+    # Process files for each directory
+    for base_dir, dir_files in files_by_dir.items():
+        if verbose:
+            print(f"\nProcessing {len(dir_files)} files from {base_dir}")
+
+        recipes = recipes_by_dir.get(base_dir)
+        xrd_mapping = xrd_mappings.get(base_dir)
+
+        for file_index, h5_file in enumerate(dir_files):
+            if verbose:
+                print(f"Processing file {file_index + 1}/{len(dir_files)}: {h5_file}")
+
+            success = process_single_h5_file(
+                h5_file, base_dir, xrd_mapping, recipes, file_index, verbose=verbose
+            )
+            if success:
+                processed_files.append(h5_file)
+            else:
+                failed_files.append(h5_file)
 
     if verbose:
         print("\nProcessing complete:")
