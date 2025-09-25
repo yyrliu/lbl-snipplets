@@ -4,6 +4,9 @@ LPS Preprocessing Pipeline
 This module processes H5 files from CBox measurements and integrates associated CD and XRD data
 into a unified HDF5 structure for comprehensive analysis.
 
+OPTIMIZATION: Photo data (/results/cbox/photo/image) is now softlinked to /measurement/spec_run/adj_photo
+instead of being copied, eliminating redundancy and saving storage space.
+
 H5 Data Structure (results group):
 =================================
 
@@ -30,7 +33,7 @@ results/                          # New processed results group
 │   │   └── num_spectra          # Scalar (number of individual spectra)
 │   │
 │   └── photo/
-│       ├── image                # 2D/3D array (adj_photo)
+│       ├── image                # Softlink to /measurement/spec_run/adj_photo (avoids redundancy)
 │       └── exposure             # Scalar (adj_photo_exposure)
 │
 ├── cd/                          # Circular dichroism results
@@ -251,12 +254,14 @@ def process_cbox_data(h5_data: Dict) -> Dict:
             # Continue without PL data
             pass
 
-    # Process photo data
+    # Process photo data - prepare metadata but don't copy large image data
     if "photo" in h5_data:
         photo_data = h5_data["photo"]
         cbox_results["photo"] = {
-            "image": photo_data["adj_photo"],
+            # Don't copy image data here - will be softlinked in save function
             "exposure": photo_data["adj_photo_exposure"],
+            # Store a flag to indicate we want to link the image
+            "_link_image": True,
         }
 
     return cbox_results
@@ -384,12 +389,31 @@ def save_results_to_h5(
             for key, value in pl.items():
                 pl_grp.create_dataset(key, data=value)
 
-        # Photo data
+        # Photo data - use softlinks to avoid redundancy
         if "photo" in cbox_data:
             photo_grp = cbox_grp.create_group("photo")
             photo = cbox_data["photo"]
+
+            # Handle image data with softlinking
+            if photo.get("_link_image", False):
+                # Check if the original adj_photo exists in the file
+                if "measurement/spec_run/adj_photo" in hf:
+                    # Create a proper soft link instead of copying the data
+                    photo_grp["image"] = h5py.SoftLink(
+                        "/measurement/spec_run/adj_photo"
+                    )
+                    print(
+                        "  Created softlink: /results/cbox/photo/image -> /measurement/spec_run/adj_photo"
+                    )
+                else:
+                    print(
+                        "  Warning: Original adj_photo not found, cannot create softlink"
+                    )
+
+            # Handle other photo data normally (exposure is small)
             for key, value in photo.items():
-                photo_grp.create_dataset(key, data=value)
+                if key not in ["_link_image"]:  # Skip internal flags
+                    photo_grp.create_dataset(key, data=value)
 
         # Save CD data
         if cd_data:
@@ -799,16 +823,16 @@ Directory Structure Expected:
 
 Example usage:
   # Check file associations only (fast, good for debugging)
-  python lps-preprocessing.py "G:\\My Drive\\LPS\\LPS-1" --check-only
+  uv run lps-preprocessing.py "G:\\My Drive\\LPS\\LPS-1" --check-only
   
   # Process all files  
-  python lps-preprocessing.py "G:\\My Drive\\LPS\\LPS-1"
+  uv run lps-preprocessing.py "G:\\My Drive\\LPS\\LPS-1"
   
   # Process only first 3 files (useful for testing)
-  python lps-preprocessing.py "G:\\My Drive\\LPS\\LPS-1" --max-files 3
+  uv run lps-preprocessing.py "G:\\My Drive\\LPS\\LPS-1" --max-files 3
   
   # Process multiple directories
-  python lps-preprocessing.py "G:\\My Drive\\LPS\\20250709_S_MeOMBAI_prestudy_1" "G:\\My Drive\\LPS\\20250709_S_MeOMBAI_prestudy_2"
+  uv run lps-preprocessing.py "G:\\My Drive\\LPS\\20250709_S_MeOMBAI_prestudy_1" "G:\\My Drive\\LPS\\20250709_S_MeOMBAI_prestudy_2"
         """,
     )
 
