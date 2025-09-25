@@ -105,23 +105,13 @@ def find_associated_files(
     # Extract sample[:13] from H5 filename according to notebook specification
     # Format: {batch_name}_{sample_position}_{sample[:13]}_run{n}_spec_run
     h5_path = Path(h5_file_path)
-    filename = h5_path.stem
-
-    # Split filename and parse according to the specification
-    parts = filename.split("_")
-    sample_id = None
-
-    # Find the run part to locate sample[:13]
-    for i, part in enumerate(parts):
-        if (
-            part.startswith("run") and i >= 2
-        ):  # Need at least batch_name, sample_position, sample[:13] before run
-            # The sample[:13] should be the part just before "run{n}"
-            sample_id = parts[i - 1]
-            break
+    *batch_name, sample_position, sample_id, run_string = h5_path.name.removesuffix(
+        "_spec_run.h5"
+    ).split("_")
+    h5_path = Path(h5_file_path)
 
     if not sample_id:
-        print(f"Warning: Could not extract sample[:13] from filename: {filename}")
+        print(f"Warning: Could not extract sample[:13] from filename: {h5_path.stem}")
         return {"cd_front": None, "cd_back": None, "xrd": None}
 
     # Ensure we use only first 13 characters as specified in notebook
@@ -533,7 +523,6 @@ def process_single_h5_file(
     base_dir: str,
     xrd_filename_mapping: Optional[Dict[str, str]] = None,
     recipes: Optional[List[Dict]] = None,
-    file_index: Optional[int] = None,
     verbose: bool = True,
 ) -> bool:
     """
@@ -544,7 +533,6 @@ def process_single_h5_file(
         base_dir: Base directory containing subdirectories (CBox, CD, XRD)
         xrd_filename_mapping: Pre-computed mapping of sample[:13] to XRD filenames
         recipes: List of process parameters from recipes.json (optional)
-        file_index: Index of current file in the processing order (optional)
         verbose: Whether to print progress information
 
     Returns:
@@ -605,12 +593,39 @@ def process_single_h5_file(
             except Exception as e:
                 print(f"Failed to process XRD data: {e}")
 
-        # Extract process parameters for this file
+        # Extract process parameters for this file based on sample ID
         process_params = None
-        if recipes and file_index is not None and 0 <= file_index < len(recipes):
-            process_params = recipes[file_index]
-            if verbose:
-                print(f"Using process parameters for file index {file_index}")
+        if recipes:
+            # Extract sample ID from H5 filename (reuse the logic from find_associated_files)
+            h5_path = Path(h5_file_path)
+
+            try:
+                *batch_name, sample_position, sample_id, run_string = (
+                    h5_path.name.removesuffix("_spec_run.h5").split("_")
+                )
+            except ValueError as e:
+                raise ValueError(
+                    f"Could not extract sample ID from filename: {h5_path.stem}"
+                ) from e
+
+            # Convert sample ID to integer and use as 0-based index (sample_id - 1)
+            try:
+                recipe_index = int(sample_id) - 1
+            except ValueError as e:
+                raise ValueError(
+                    f"Could not convert sample ID '{sample_id}' to integer"
+                ) from e
+
+            try:
+                process_params = recipes[recipe_index]
+                if verbose:
+                    print(
+                        f"Using process parameters for sample ID {sample_id} (recipe index {recipe_index})"
+                    )
+            except IndexError as e:
+                raise IndexError(
+                    f"Warning: Sample ID {sample_id} corresponds to recipe index {recipe_index}, but only {len(recipes)} recipes available"
+                ) from e
 
         # Save results to new H5 file in preprocessed directory
         print("Saving results...")
@@ -920,7 +935,7 @@ def process_h5_files_batch(
                 print(f"Processing file {file_index + 1}/{len(dir_files)}: {h5_file}")
 
             success = process_single_h5_file(
-                h5_file, base_dir, xrd_mapping, recipes, file_index, verbose=verbose
+                h5_file, base_dir, xrd_mapping, recipes, verbose=verbose
             )
             if success:
                 processed_files.append(h5_file)
