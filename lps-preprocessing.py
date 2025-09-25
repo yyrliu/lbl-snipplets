@@ -45,6 +45,7 @@ results/                          # New processed results group
 │   ├── gen_CD                   # 1D array (genuine CD)
 │   ├── ldlb_CD                  # 1D array (linear dichroism + birefringence)
 │   ├── abs_avg                  # 1D array (average absorbance)
+│   ├── g_factor                 # 1D array (g-factor: gen_CD / (abs_avg * 32980))
 │   └── file_info/
 │       ├── front_file           # String (source filename)
 │       └── back_file            # String (source filename)
@@ -300,6 +301,12 @@ def process_cd_data(cd_front_file: str, cd_back_file: str) -> Dict:
     ldlb_CD = (front_CD + back_CD) / 2  # Linear dichroism + birefringence
     abs_avg = (front_abs + back_abs) / 2  # Average absorbance
 
+    # Calculate g-factor: gen_CD / (abs_avg * 32980)
+    # Handle division by zero by setting g_factor to 0 where abs_avg is 0
+    g_factor = np.divide(
+        gen_CD, abs_avg * 32980, out=np.zeros_like(gen_CD), where=(abs_avg != 0)
+    )
+
     return {
         "wavelength": wavelength,
         "front_CD": front_CD,
@@ -309,6 +316,7 @@ def process_cd_data(cd_front_file: str, cd_back_file: str) -> Dict:
         "gen_CD": gen_CD,
         "ldlb_CD": ldlb_CD,
         "abs_avg": abs_avg,
+        "g_factor": g_factor,
         "file_info": {"front_file": cd_front_file, "back_file": cd_back_file},
     }
 
