@@ -44,6 +44,7 @@ results/                          # New processed results group
 │   ├── back_abs                 # 1D array
 │   ├── gen_CD                   # 1D array (genuine CD)
 │   ├── ldlb_CD                  # 1D array (linear dichroism + birefringence)
+│   ├── abs_avg                  # 1D array (average absorbance)
 │   └── file_info/
 │       ├── front_file           # String (source filename)
 │       └── back_file            # String (source filename)
@@ -297,6 +298,7 @@ def process_cd_data(cd_front_file: str, cd_back_file: str) -> Dict:
     # Calculate derived quantities
     gen_CD = (front_CD - back_CD) / 2  # Genuine CD
     ldlb_CD = (front_CD + back_CD) / 2  # Linear dichroism + birefringence
+    abs_avg = (front_abs + back_abs) / 2  # Average absorbance
 
     return {
         "wavelength": wavelength,
@@ -306,6 +308,7 @@ def process_cd_data(cd_front_file: str, cd_back_file: str) -> Dict:
         "back_abs": back_abs,
         "gen_CD": gen_CD,
         "ldlb_CD": ldlb_CD,
+        "abs_avg": abs_avg,
         "file_info": {"front_file": cd_front_file, "back_file": cd_back_file},
     }
 
