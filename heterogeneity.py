@@ -1,9 +1,9 @@
-# source: https://github.com/malghal/perovskites_antisolvents_clustering/blob/467a7789e5b0e529fc69dfb31acb9ad4492cd809/Codes/BO/generating_total_score_components_unused.ipynb
 import h5py
 import numpy as np
 import cv2
 from scipy.stats import entropy
 
+# source: https://github.com/malghal/perovskites_antisolvents_clustering/blob/467a7789e5b0e529fc69dfb31acb9ad4492cd809/Codes/BO/generating_total_score_components_unused.ipynb
 
 # This function take in raw image from the h5 file extrated and cut the plate holder.  Accept numpy array directly instead of file path
 # Input: Raw image (numpy.array)
