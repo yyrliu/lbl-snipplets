@@ -343,8 +343,8 @@ def process_cd_data(cd_front_file: str, cd_back_file: str) -> Dict:
     back_abs = df_back["abs"].values
 
     # Calculate derived quantities
-    gen_CD = (front_CD - back_CD) / 2  # Genuine CD
-    ldlb_CD = (front_CD + back_CD) / 2  # Linear dichroism + birefringence
+    gen_CD = (front_CD + back_CD) / 2  # Genuine CD
+    ldlb_CD = (front_CD - back_CD) / 2  # Linear dichroism + birefringence
     abs_avg = (front_abs + back_abs) / 2  # Average absorbance
 
     # Calculate g-factor: gen_CD / (abs_avg * 32980)
