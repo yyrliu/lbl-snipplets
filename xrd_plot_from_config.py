@@ -87,12 +87,13 @@ def plot_xrd(df, plot_cfg, data_dir=None, index_offsets=None):
                 label=col,
                 linestyle=get_linestyle(col),
                 color=get_color(col),
+                lw=0.7,
             )
         ax.set_yscale("log")
         ax.set_xlabel("$2\\theta$ (degrees, Cu K$\\alpha$)")
         ax.set_ylabel("intensity (a.u.)")
         ax.set_ylim(*plot_cfg["options"]["ylim"])
-        ax.legend()
+        ax.legend(ncol=8, fontsize="small")
         ax.minorticks_on()
         from matplotlib.ticker import AutoMinorLocator
 

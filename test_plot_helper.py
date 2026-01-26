@@ -161,6 +161,141 @@ def test_get_label_from_mapping_single_number_range():
     )  # Not in range
 
 
+def test_get_label_from_mapping_comma_separated_range():
+    """Test get_label_from_mapping with comma-separated number ranges."""
+    label_mapping = [
+        {
+            "pattern": r"^(?P<prefix>[A-Za-z0-9]*?)[-_]?(?P<number>\d+)$",
+            "rules": [
+                # Test comma-separated values
+                {"prefix": "", "number_range": "1, 3, 5", "label": "0.3M-wash {number}"},
+                {"prefix": "", "number_range": "2, 4, 6", "label": "1.0M-wash {number}"},
+                {"prefix": "", "number_range": "7, 9, 11", "label": "Anneal {number} min"},
+                # Test comma-separated with number_mapping
+                {
+                    "prefix": "",
+                    "number_range": "10, 15, 20",
+                    "label": "Custom {mapped_result}",
+                    "number_mapping": {1: "A", 2: "B", 3: "C"},
+                },
+                # Test mixed with spaces and no spaces
+                {"prefix": "", "number_range": "12,13, 14", "label": "Mixed spacing {number}"},
+            ],
+        }
+    ]
+
+    # Test comma-separated values - should get position-based numbering
+    assert get_label_from_mapping("1", label_mapping) == "0.3M-wash 1"  # First position
+    assert get_label_from_mapping("3", label_mapping) == "0.3M-wash 2"  # Second position
+    assert get_label_from_mapping("5", label_mapping) == "0.3M-wash 3"  # Third position
+    
+    assert get_label_from_mapping("2", label_mapping) == "1.0M-wash 1"  # First position
+    assert get_label_from_mapping("4", label_mapping) == "1.0M-wash 2"  # Second position
+    assert get_label_from_mapping("6", label_mapping) == "1.0M-wash 3"  # Third position
+
+    assert get_label_from_mapping("7", label_mapping) == "Anneal 1 min"   # First position
+    assert get_label_from_mapping("9", label_mapping) == "Anneal 2 min"   # Second position
+    assert get_label_from_mapping("11", label_mapping) == "Anneal 3 min"  # Third position
+
+    # Test comma-separated with custom number_mapping
+    assert get_label_from_mapping("10", label_mapping) == "Custom A"  # maps to position 1 -> "A"
+    assert get_label_from_mapping("15", label_mapping) == "Custom B"  # maps to position 2 -> "B"
+    assert get_label_from_mapping("20", label_mapping) == "Custom C"  # maps to position 3 -> "C"
+
+    # Test mixed spacing in comma-separated values
+    assert get_label_from_mapping("12", label_mapping) == "Mixed spacing 1"
+    assert get_label_from_mapping("13", label_mapping) == "Mixed spacing 2"
+    assert get_label_from_mapping("14", label_mapping) == "Mixed spacing 3"
+
+    # Test numbers not in comma-separated list
+    assert get_label_from_mapping("8", label_mapping) == "Sample 8"   # Not in any list
+    assert get_label_from_mapping("16", label_mapping) == "Sample 16" # Not in any list
+    assert get_label_from_mapping("99", label_mapping) == "Sample 99" # Not in any list
+
+
+def test_get_label_from_mapping_comma_separated_with_prefix():
+    """Test get_label_from_mapping with comma-separated ranges and prefixes."""
+    label_mapping = [
+        {
+            "pattern": r"^(?P<prefix>[A-Za-z0-9]+)[-_](?P<number>\d+)$",  # Require separator for clear parsing
+            "rules": [
+                {"prefix": "GB", "number_range": "1, 3, 5", "label": "GB Sample {number}"},
+                {"prefix": "Robot", "number_range": "2, 4, 6", "label": "Robot {number}"},
+                {
+                    "prefix": "Test",
+                    "number_range": "10, 20, 30",
+                    "label": "Test {mapped_result}",
+                    "number_mapping": {1: "Alpha", 2: "Beta", 3: "Gamma"},
+                },
+            ],
+        }
+    ]
+
+    # Test prefixed comma-separated values (using separators for clear parsing)
+    assert get_label_from_mapping("GB-1", label_mapping) == "GB Sample 1"
+    assert get_label_from_mapping("GB_3", label_mapping) == "GB Sample 2"
+    assert get_label_from_mapping("GB-5", label_mapping) == "GB Sample 3"
+    assert get_label_from_mapping("GB-2", label_mapping) == "Sample GB-2"  # Not in list
+
+    assert get_label_from_mapping("Robot_2", label_mapping) == "Robot 1"
+    assert get_label_from_mapping("Robot-4", label_mapping) == "Robot 2"
+    assert get_label_from_mapping("Robot_6", label_mapping) == "Robot 3"
+    assert get_label_from_mapping("Robot-1", label_mapping) == "Sample Robot-1"  # Not in list
+
+    # Test with custom mapping
+    assert get_label_from_mapping("Test-10", label_mapping) == "Test Alpha"
+    assert get_label_from_mapping("Test_20", label_mapping) == "Test Beta"
+    assert get_label_from_mapping("Test-30", label_mapping) == "Test Gamma"
+    assert get_label_from_mapping("Test_15", label_mapping) == "Sample Test_15"  # Not in list
+
+
+def test_get_label_from_mapping_all_formats_combined():
+    """Test get_label_from_mapping with all supported formats in one mapping."""
+    label_mapping = [
+        {
+            "pattern": r"^(?P<prefix>[A-Za-z0-9]*?)[-_]?(?P<number>\d+)$",
+            "rules": [
+                # Single number
+                {"prefix": "", "number_range": "1", "label": "Single {number}"},
+                # Range format
+                {"prefix": "", "number_range": "2-4", "label": "Range {number}"},
+                # Comma-separated
+                {"prefix": "", "number_range": "5, 7, 9", "label": "Comma {number}"},
+                # Mixed with number_mapping
+                {
+                    "prefix": "",
+                    "number_range": "10, 12, 14",
+                    "label": "Mapped {mapped_result}",
+                    "number_mapping": {1: 100, 2: 200, 3: 300},
+                },
+            ],
+        }
+    ]
+
+    # Test single number format
+    assert get_label_from_mapping("1", label_mapping) == "Single 1"
+
+    # Test range format
+    assert get_label_from_mapping("2", label_mapping) == "Range 1"
+    assert get_label_from_mapping("3", label_mapping) == "Range 2"
+    assert get_label_from_mapping("4", label_mapping) == "Range 3"
+
+    # Test comma-separated format
+    assert get_label_from_mapping("5", label_mapping) == "Comma 1"
+    assert get_label_from_mapping("7", label_mapping) == "Comma 2"
+    assert get_label_from_mapping("9", label_mapping) == "Comma 3"
+
+    # Test comma-separated with mapping
+    assert get_label_from_mapping("10", label_mapping) == "Mapped 100"
+    assert get_label_from_mapping("12", label_mapping) == "Mapped 200"
+    assert get_label_from_mapping("14", label_mapping) == "Mapped 300"
+
+    # Test numbers not matching any format
+    assert get_label_from_mapping("6", label_mapping) == "Sample 6"
+    assert get_label_from_mapping("8", label_mapping) == "Sample 8"
+    assert get_label_from_mapping("11", label_mapping) == "Sample 11"
+
+
 def test_match_label_filter():
     """Test match_label_filter function for various filter types."""
 

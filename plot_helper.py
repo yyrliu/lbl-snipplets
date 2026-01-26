@@ -115,17 +115,35 @@ def get_label_from_mapping(metadata_or_str, label_mapping):
                     range_str = rule.get("number_range", "")
                     if range_str:
                         try:
-                            # Handle both single number and range format
-                            if "-" in str(range_str):
+                            # Handle comma-separated values, range format, and single number
+                            if "," in str(range_str):
+                                # Comma-separated values like "1, 3, 5"
+                                valid_numbers = [int(x.strip()) for x in str(range_str).split(",")]
+                                number_in_range = number in valid_numbers
+                            elif "-" in str(range_str):
+                                # Range format like "1-2"
                                 min_num, max_num = map(int, str(range_str).split("-"))
+                                number_in_range = min_num <= number <= max_num
                             else:
                                 # Single number case
-                                min_num = max_num = int(range_str)
+                                single_num = int(range_str)
+                                number_in_range = number == single_num
                         except Exception:
                             continue
-                        if min_num <= number <= max_num:
+                        if number_in_range:
                             number_mapping = rule.get("number_mapping", None)
-                            offset_idx = number - min_num + 1
+                            if "," in str(range_str):
+                                # For comma-separated values, the offset is the position in the list
+                                valid_numbers = [int(x.strip()) for x in str(range_str).split(",")]
+                                offset_idx = valid_numbers.index(number) + 1
+                            elif "-" in str(range_str):
+                                # For range format, calculate offset from min
+                                min_num, max_num = map(int, str(range_str).split("-"))
+                                offset_idx = number - min_num + 1
+                            else:
+                                # Single number case
+                                offset_idx = 1
+                            
                             if number_mapping:
                                 mapped_result = number_mapping.get(
                                     offset_idx, offset_idx
