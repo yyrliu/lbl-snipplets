@@ -13,6 +13,7 @@ from numpy import percentile
 import numpy as np
 import xarray as xr
 import datetime
+from joblib import Parallel, delayed, cpu_count
 from tqdm import tqdm
 import json
 
@@ -28,28 +29,38 @@ def get_file_creation_time(file_path):
         
     return datetime.datetime.fromtimestamp(timestamp)
 
-def process_frames(frame_files, poni_file, radial_range=(0.4, 4), azimuth_range=(-35, 35)):
+def process_frame(frame_file, ai, radial_range=None, azimuth_range=None):
+    frame_timestamp = get_file_creation_time(frame_file)
+    frame = fabio.open(str(frame_file)).data
+    res = ai.integrate1d(
+        frame,
+        npt=500,
+        radial_range=radial_range,
+        azimuth_range=azimuth_range,
+        unit="q_A^-1",
+        method=("full", "histogram", "cython"),
+        polarization_factor=0.95,
+    )
+    return (res.radial, res.intensity, frame_timestamp, int(frame_file.stem.split("_")[-1]))
+
+
+def process_frames(frame_files, poni_file, radial_range=(0.3, 4), azimuth_range=(-35, 35), num_workers=None):
     ai = pyFAI.load(poni_file)
 
-    results = []
-    for frame_file in tqdm(frame_files, desc="Processing frames"):
-        # print(f"Processing {str(frame_file.name)}")
-        frame_timestamp = get_file_creation_time(frame_file)
-        frame = fabio.open(str(frame_file)).data
-        # frame = np.flipud(frame) # Removed flipud as per common usage, or should I keep it? Note: Notebook had it.
-        # Check notebook usage: frame = np.flipud(frame)
-        frame = np.flipud(frame)
+    if num_workers != 1:
 
-        res = ai.integrate1d(
-            frame,
-            npt=500,
-            radial_range=radial_range,
-            azimuth_range=azimuth_range,
-            unit="q_A^-1",
-            method=("full", "histogram", "cython"),
-            polarization_factor=0.95,
+        if num_workers is None:
+            num_workers = max(1, cpu_count() - 1)
+
+        results = Parallel(n_jobs=num_workers, prefer="threads")(
+            delayed(process_frame)(frame_file, ai, radial_range, azimuth_range) for frame_file in frame_files
         )
-        results.append((res.radial, res.intensity, frame_timestamp, int(frame_file.stem.split("_")[-1])))
+
+    else:
+        results = []
+        for frame_file in tqdm(frame_files, desc="Processing frames"):
+            res = process_frame(frame_file, ai, radial_range, azimuth_range)
+            results.append(res)
 
     radial = results[0][0]
     intensity = [res[1] for res in results]
@@ -108,7 +119,7 @@ def refine_geometry(image_file, calibrant_file, initial_poni, ax=None):
 
     sg = SingleGeometry(sg_label, image, calibrant=calibrant, detector=detector, geometry=initial_geometry)
     sg.extract_cp(max_rings=5)
-    sg.geometry_refinement.refine2(fix=["rot1", "rot2", "rot3", "wavelength"])
+    sg.geometry_refinement.refine2(fix=["wavelength"])
     sg.get_ai()
 
     # jupyter.display(sg=sg) # This is for notebook
@@ -159,7 +170,7 @@ def create_plots(exp_dir, frame_files, first_image, refined_poni, data_array, nc
     ax3 = fig.add_subplot(gs[0, 2])
     ai_refined = pyFAI.load(str(refined_poni))
     mid_idx = len(frame_files) // 2
-    res_1d = ai_refined.integrate1d(fabio.open(str(frame_files[mid_idx])).data, 500, unit="q_A^-1", azimuth_range=(-35, 35), radial_range=(0.4, 4), polarization_factor=0.95)
+    res_1d = ai_refined.integrate1d(fabio.open(str(frame_files[mid_idx])).data, 500, unit="q_A^-1", azimuth_range=(-35, 35), radial_range=(0.3, 4), polarization_factor=0.95)
     ax3.plot(res_1d.radial, res_1d.intensity)
     ax3.set_yscale("log")
     ax3.set_xlabel("q ($A^{-1}$)")
@@ -249,6 +260,12 @@ def main():
     # which is exp_dir.parent
     save_dir = exp_dir.parents[1]
     nc_file_path = save_dir / f"{exp_dir.stem}.nc"
+    if nc_file_path.is_file():
+        nc_file_path.unlink()
+        # double check deletion
+        if nc_file_path.is_file():
+            raise FileExistsError(f"Could not delete existing NetCDF file at {nc_file_path}")
+    
     data_array.to_netcdf(nc_file_path)
     print(f"Saved NetCDF to {nc_file_path}")
 
