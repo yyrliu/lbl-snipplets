@@ -249,9 +249,9 @@ def main():
 
     # 3. Save NetCDF
     data_array.attrs["title"] = f"{exp_dir.stem}"
-    data_array.attrs["base_poni_file"] = str(poni_file)
-    data_array.attrs["poni_file"] = str(refined_poni)
-    data_array.attrs["source_dir"] = str(exp_dir)
+    data_array.attrs["base_poni_file"] = poni_file.as_posix()
+    data_array.attrs["poni_file"] = refined_poni.as_posix()
+    data_array.attrs["source_dir"] = exp_dir.as_posix()
     data_array.attrs["tif_tags"] = json.dumps(fabio.open(str(first_image)).header)
     
     # save_dir = Path(r"G:\Shared drives\Sutter-Fella Lab\ECRP-Project\results\beamtime_Dec2025") # From notebook, maybe generalize?
